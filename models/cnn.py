@@ -5,7 +5,7 @@ class SimpleCNN(nn.Module):
         super(SimpleCNN, self).__init__()
         self.conv_layers = self._make_conv_layers(in_channels, num_conv_layers)
         self.fc_layers = nn.Sequential(
-            nn.Linear(128, 64),
+            nn.Linear(64 * 7 * 7, 64),
             nn.ReLU(),
             nn.Linear(64, num_classes)
         )
