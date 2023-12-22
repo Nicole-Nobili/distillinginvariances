@@ -2,7 +2,7 @@
 mnist_images_examples/
 data/
 modelnet_images*/
-
+./saved_models
 
 # Default python gitignores.
 __pycache__/
