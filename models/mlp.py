@@ -1,3 +1,5 @@
+
+
 import torch.nn as nn
 import torch
 
@@ -58,7 +60,7 @@ class MLP(nn.Module):
         with torch.no_grad():
             correct = 0
             total = 0
-            print('a')
+
             for images, labels in test_loader:
                 images = images.view(-1, 784)
                 outputs = self.forward(images.to(self.device))
