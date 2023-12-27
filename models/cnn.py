@@ -1,13 +1,12 @@
 import torch.nn as nn
 
+
 class SimpleCNN(nn.Module):
     def __init__(self, in_channels, num_classes, num_conv_layers=2, temperature=1):
         super(SimpleCNN, self).__init__()
         self.conv_layers = self._make_conv_layers(in_channels, num_conv_layers)
         self.fc_layers = nn.Sequential(
-            nn.Linear(64 * 7 * 7, 64),
-            nn.ReLU(),
-            nn.Linear(64, num_classes)
+            nn.Linear(64 * 7 * 7, 64), nn.ReLU(), nn.Linear(64, num_classes)
         )
         self.temperature = temperature
 
@@ -15,9 +14,11 @@ class SimpleCNN(nn.Module):
         layers = []
         for i in range(num_conv_layers):
             # Adjust the number of output channels based on your requirements
-            out_channels = 32 * (2 ** i)
+            out_channels = 32 * (2**i)
             layers += [
-                nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
+                nn.Conv2d(
+                    in_channels, out_channels, kernel_size=3, stride=1, padding=1
+                ),
                 nn.ReLU(),
                 nn.MaxPool2d(kernel_size=2, stride=2),
             ]
@@ -32,6 +33,7 @@ class SimpleCNN(nn.Module):
         # Apply temperature scaling in the last layer
         x = x / self.temperature
         return x
+
 
 class LeNet(nn.Module):
     def __init__(self, temperature):
@@ -49,7 +51,7 @@ class LeNet(nn.Module):
             nn.ReLU(),
             nn.Linear(120, 84),
             nn.ReLU(),
-            nn.Linear(84, 10)
+            nn.Linear(84, 10),
         )
         self.temperature = temperature
 

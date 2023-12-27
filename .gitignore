@@ -1,8 +1,9 @@
 # Custom gitignores
 mnist_images_examples/
-data/
 modelnet_images*/
-./saved_models
+/data/
+/saved_models/
+trained_deepsets/
 
 # Default python gitignores.
 __pycache__/

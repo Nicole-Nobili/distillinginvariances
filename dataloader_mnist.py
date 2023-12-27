@@ -27,7 +27,7 @@ class RawDataset:
         util.make_output_directories("./", outdir)
         fig = plt.figure
         plt.imshow(self.images[image_idx], cmap=plt.cm.gray)
-        title_text = f"training image [{image_idx}] = {self.labels[image_idx]}"
+        title_text = f"image [{image_idx}] = {self.labels[image_idx]}"
         plt.title(title_text, fontsize=15)
         plt.savefig(join(outdir, f"image_{image_idx}"))
 
