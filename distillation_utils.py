@@ -5,17 +5,8 @@ import numpy as np
 
 
 class Distiller(nn.Module):
-    def __init__(
-        self,
-        student: nn.Module,
-        teacher: nn.Module,
-        device: str,
-        save_path=None,
-        lr=0.001,
-        temp: float = 3.5,
-        alpha: float = 0,
-    ):
-        # Note that a temperature of 4 is said to work well when the teacher is fairly confident of its predictions
+    def __init__(self, student: nn.Module, teacher: nn.Module, device: str, load_student_from_path = None, lr = 0.001, temp: float = 3.5, alpha: float = 0):
+        #Note that a temperature of 4 is said to work well when the teacher is fairly confident of its predictions
         super(Distiller, self).__init__()
         self.student = student
         self.teacher = teacher
@@ -34,9 +25,9 @@ class Distiller(nn.Module):
         self.alpha = alpha
         self.temp = temp
 
-        if save_path is not None:
-            state_dict = torch.load(save_path)
-            self.student.load_state_dict(state_dict)
+        if load_student_from_path is not None:
+          state_dict = torch.load(load_student_from_path)
+          self.student.load_state_dict(state_dict)
 
     def distill(self, train_dataloader, epochs, save_path_folder: None):
         self.student_loss_running = []
@@ -86,9 +77,12 @@ class Distiller(nn.Module):
         print(f"Total loss: {total_loss}")
 
         if save_path_folder is not None:
-            save_path = save_path_folder + "distiller"
-            torch.save(self.student.state_dict(), save_path)
-            print("saved model")
+          save_path = save_path_folder + 'distiller'
+          torch.save(self.student.state_dict(), save_path)
+          print('saved model')
+
+    def get_student(self):
+       return self.student
 
     def test_step(self, test_loader):
         """Test the student network."""
@@ -96,13 +90,13 @@ class Distiller(nn.Module):
             correct = 0
             total = 0
 
-            for x, y in test_loader:
-                x = x.to(self.device)
-                y = y.to(self.device)
-                y_prediction = self.student(x.view(-1, 784))
-                _, predicted = torch.max(y_prediction.data, 1)
-                total += y.size(0)
-                correct += (predicted == y).sum().item()
-
-            accuracy = correct / total
-            print(f"Test Accuracy: {accuracy:.4f}")
+          for x,y in test_loader:
+            x = x.to(self.device)
+            y = y.to(self.device)
+            y_prediction = self.student(x.view(-1,784))
+            _, predicted = torch.max(y_prediction.data,1)
+            total += y.size(0)
+            correct += (predicted == y).sum().item()
+            
+          accuracy = correct/total
+          print(f'Test Accuracy: {accuracy:.4f}')
