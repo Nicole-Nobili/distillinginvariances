@@ -5,7 +5,7 @@ import numpy as np
 
 class Distiller(nn.Module):
 
-    def __init__(self, student: nn.Module, teacher: nn.Module, device: str, save_path = None, lr = 0.001, temp: float = 3.5, alpha: float = 0):
+    def __init__(self, student: nn.Module, teacher: nn.Module, device: str, load_student_from_path = None, lr = 0.001, temp: float = 3.5, alpha: float = 0):
         #Note that a temperature of 4 is said to work well when the teacher is fairly confident of its predictions
         super(Distiller, self).__init__()
         self.student = student
@@ -25,8 +25,8 @@ class Distiller(nn.Module):
         self.alpha = alpha
         self.temp = temp
 
-        if save_path is not None:
-          state_dict = torch.load(save_path)
+        if load_student_from_path is not None:
+          state_dict = torch.load(load_student_from_path)
           self.student.load_state_dict(state_dict)
 
     def distill(self, train_dataloader, epochs, save_path_folder: None):
@@ -76,6 +76,9 @@ class Distiller(nn.Module):
           save_path = save_path_folder + 'distiller'
           torch.save(self.student.state_dict(), save_path)
           print('saved model')
+      
+    def get_student(self):
+       return self.student
 
     def test_step(self, test_loader):
         """Test the student network."""
@@ -93,4 +96,3 @@ class Distiller(nn.Module):
             
           accuracy = correct/total
           print(f'Test Accuracy: {accuracy:.4f}')
-
