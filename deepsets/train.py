@@ -1,4 +1,4 @@
-# from the deepset paper: https://github.com/manzilzaheer/DeepSets/blob/master/PointClouds/classifier.py
+# Training script for the deepsets network.
 
 import os
 import time
@@ -48,7 +48,6 @@ def main(config: dict):
 
 def import_data(device:str, config: dict, train: bool) -> DataLoader:
     """Imports the Modelnet40 data using the pytorch geometric package."""
-
     print(util.tcols.OKGREEN + "Importing data: " + util.tcols.ENDC, end='')
     pre_transforms = util.get_torchgeometric_pretransforms(config['pretransforms'])
     transforms = util.get_torchgeometric_transforms(config['transforms'])
@@ -64,7 +63,7 @@ def import_data(device:str, config: dict, train: bool) -> DataLoader:
         print("training data imported!")
     else:
         config['torch_dataloader']['shuffle'] = False
-        print("validation data imported!")\
+        print("validation data imported!")
 
     dataloader_args = config['torch_dataloader']
     if device == 'cpu':

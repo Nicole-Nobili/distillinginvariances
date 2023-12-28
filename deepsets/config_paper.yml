@@ -2,7 +2,7 @@
 define: &sampling 1000
 define: &classes 40
 
-outdir: 'deepsequiv_1000p_zaheer'
+outdir: 'deepsinv_1000p_zaheer'
 data_hyperparams:
   pc_rootdir: "../data/ModelNet40"
   classes: *classes
@@ -15,7 +15,7 @@ data_hyperparams:
     shuffle: True
     num_workers: 0
 
-deepsets_type: "equivariant"
+deepsets_type: "invariant"
 
 model_hyperparams:
   input_dim: 3
@@ -31,4 +31,4 @@ training_hyperparams:
   epochs: 1000
   weight_decay: 0.0000001
   clip_grad: 5
-  early_stopping: 15
+  early_stopping: 20

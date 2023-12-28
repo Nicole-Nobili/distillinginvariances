@@ -150,12 +150,6 @@ class DeepSetsEquivariant(nn.Module):
 
     @torch.no_grad()
     def predict(self, x) -> np.ndarray:
-        """
-        Compute the prediction of the autoencoder.
-        @x_data :: Input array to pass through the autoencoder.
-
-        returns :: The latent space of the ae and the reco data.
-        """
         self.eval()
         output = self.forward(x)
 
@@ -174,20 +168,21 @@ class DeepSetsInvariant(nn.Module):
         dropout: float,
         output_dim: int
     ):
-        super(DeepSetsEquivariant, self).__init__()
+        super(DeepSetsInvariant, self).__init__()
         self.activ = activ
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.phi_layers = phi_layers
         self.rho_layers = rho_layers
 
-        self.phi = self._construct_phi(phi_layers)
-        self.rho = self._construct_rho(rho_layers, dropout)
+        self.phi = self._construct_phi()
         self.agg = self._get_aggregation(aggreg)
+        self.rho = self._construct_rho(dropout)
 
     def _construct_phi(self) -> nn.Sequential:
         """Builds the first MLP before the aggregation, called phi in the paper."""
         phi = nn.Sequential()
+        self.phi_layers.insert(0, self.input_dim)
         for nlayer in range(len(self.phi_layers) - 1):
             layer = nn.Linear(self.phi_layers[nlayer], self.phi_layers[nlayer+1])
             activ = activ_string_to_torch(self.activ)
@@ -203,13 +198,14 @@ class DeepSetsInvariant(nn.Module):
             print(f"Given dropout rate {dropout} is invalid! Building model w/o.")
 
         self.rho_layers.append(self.phi_layers[-1])
+        self.rho_layers.append(self.output_dim)
         for nlayer in range(len(self.rho_layers) - 1):
             layer = nn.Linear(self.rho_layers[nlayer], self.rho_layers[nlayer + 1])
             activ = activ_string_to_torch(self.activ)
             if dropout > 0 and dropout < 1:
-                nn.Dropout(p=dropout)
+                rho.append(nn.Dropout(p=dropout))
             rho.append(layer)
-            if nlayer == len(self.rho_layers) - 1:
+            if nlayer == len(self.rho_layers) - 2:
                 break
             rho.append(activ)
 
@@ -218,11 +214,11 @@ class DeepSetsInvariant(nn.Module):
     def _get_aggregation(self, aggreg: str):
         """Gets the desired aggregation function specified through the aggr string."""
         aggregations = {
-            "mean": torch.mean,
-            "max":  torch.max
+            "mean": lambda: torch.mean,
+            "max":  lambda: torch.max
         }
         aggregation = aggregations.get(aggreg, lambda: None)()
-        if activation is None:
+        if aggregation is None:
             raise ValueError(
                 f"Aggr {aggregation} not implemented! Go to deepsets.py and add it."
             )
@@ -232,20 +228,15 @@ class DeepSetsInvariant(nn.Module):
     def forward(self, x):
         phi_output = self.phi(x)
         agg_output = self.agg(phi_output, dim=1)
-        rho_output = self.rho(aggreg_output)
+        if isinstance(agg_output, tuple):
+            agg_output = agg_output[0]
+        rho_output = self.rho(agg_output)
 
         return rho_output
 
     @torch.no_grad()
     def predict(self, x) -> np.ndarray:
-        """
-        Compute the prediction of the autoencoder.
-        @x_data :: Input array to pass through the autoencoder.
-
-        returns :: The latent space of the ae and the reco data.
-        """
         self.eval()
         output = self.forward(x)
 
-        output = output.cpu().numpy()
         return output
