@@ -5,6 +5,7 @@ modelnet_images*/
 /saved_models/
 trained_deepsets/
 data/MNIST/raw/
+logs/
 
 # Default python gitignores.
 __pycache__/

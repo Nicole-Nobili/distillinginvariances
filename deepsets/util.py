@@ -5,14 +5,18 @@ import warnings
 import subprocess
 
 import yaml
+import numpy as np
 import torch
 import torch.nn as nn
 import torchvision
 import torchinfo
+import torch_geometric
+import matplotlib.pyplot as plt
 
 from deepsets import DeepSetsEquivariant
 from deepsets import DeepSetsInvariant
 import modelnet_transforms
+from torch_geometric.transforms import SamplePoints
 
 
 def make_output_directories(locations: list | str, outdir: str) -> list:
@@ -50,21 +54,31 @@ def choose_deepsets(choice: str, model_hyperparams: dict):
     return model
 
 
-def get_pointcloud_transformations(transformations: dict):
-    """Gets the transformation composition from the config."""
-    transforms = []
-    if transformations["sampling"]:
-        transforms.append(modelnet_transforms.PointSampler(transformations["sampling"]))
-    if transformations["norm"]:
-        transforms.append(modelnet_transforms.Normalise())
-    if transformations["rotation"]:
-        transforms.append(modelnet_transforms.RandRotationZ())
-    if transformations["noise"]:
-        transforms.append(modelnet_transforms.RandomNoise())
-    if transformations["tensor"]:
-        transforms.append(modelnet_transforms.ToTensor())
+def get_torchgeometric_pretransforms(pretransforms: dict):
+    """Get the pre-transformations to include in the modelnet loader class.
 
-    return torchvision.transforms.Compose(transforms)
+    The data is saved to disk with these transformations applied.
+    """
+    tg_pretransforms = []
+    if pretransforms['norm']:
+        tg_pretransforms.append(torch_geometric.transforms.NormalizeScale())
+
+    return torch_geometric.transforms.Compose(tg_pretransforms)
+
+
+def get_torchgeometric_transforms(transforms: dict):
+    """Get the transformations that are applied to modelnet pointcloud data.
+
+    These transformations are applied as each pointcloud is loaded.
+    """
+    tg_transforms = []
+    if 'sampling' in transforms.keys():
+        tg_transforms.append(
+                torch_geometric.transforms.SamplePoints(transforms['sampling']
+            )
+        )
+
+    return torch_geometric.transforms.Compose(tg_transforms)
 
 
 def save_config_file(config: dict, outdir: str):
@@ -89,7 +103,7 @@ def define_torch_device() -> torch.device:
     return device
 
 
-def get_free_gpu(threshold_vram_usage=3000, max_gpus=1):
+def get_free_gpu(threshold_vram_usage=30000, max_gpus=1):
     """
     Returns the free gpu numbers on your system.
 
@@ -110,7 +124,6 @@ def get_free_gpu(threshold_vram_usage=3000, max_gpus=1):
     gpu_info = smi_query_result.decode("utf-8").split("\n")
     gpu_info = list(filter(lambda info: "Used" in info, gpu_info))
     gpu_info = [int(x.split(":")[1].replace("MiB", "").strip()) for x in gpu_info]
-
     # Keep gpus under threshold only.
     free_gpus = [str(i) for i, mem in enumerate(gpu_info) if mem < threshold_vram_usage]
     free_gpus = free_gpus[: min(max_gpus, len(free_gpus))]
@@ -120,6 +133,66 @@ def get_free_gpu(threshold_vram_usage=3000, max_gpus=1):
         raise RuntimeError(tcols.FAIL + "No free GPUs found." + tcols.ENDC)
 
     return gpus_to_use
+
+
+def loss_plot(all_train_losses: list, all_valid_losses: list, outdir: str):
+    """Plots the loss for each epoch for the training and validation data."""
+    epochs = list(range(len(all_train_losses)))
+    plt.plot(
+        epochs,
+        all_train_losses,
+        color="gray",
+        label="Training Loss (average)",
+    )
+    plt.plot(epochs, all_valid_losses, color="navy", label="Validation Loss")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+
+    best_valid_loss = min(all_valid_losses)
+    plt.text(
+        np.min(epochs),
+        np.max(all_train_losses),
+        f"Min: {best_valid_loss:.2e}",
+        verticalalignment="top",
+        horizontalalignment="left",
+        color="blue",
+        fontsize=15,
+        bbox={"facecolor": "white", "alpha": 0.8, "pad": 5},
+    )
+    plt.legend()
+    plt.savefig(os.path.join(outdir, "loss_epochs.pdf"))
+    plt.close()
+    print(tcols.OKGREEN + f"Loss vs epochs plot saved to {outdir}." + tcols.ENDC)
+
+
+def accu_plot(all_train_accs: list, all_valid_accs: list, outdir: str):
+    """Plots the loss for each epoch for the training and validation data."""
+    epochs = list(range(len(all_train_accs)))
+    plt.plot(
+        epochs,
+        all_train_accs,
+        color="gray",
+        label="Training Accuracy (average)",
+    )
+    plt.plot(epochs, all_valid_accs, color="navy", label="Validation Accuracy")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+
+    best_valid_acc = max(all_valid_accs)
+    plt.text(
+        np.min(epochs),
+        np.max(all_train_accs),
+        f"Min: {best_valid_acc:.2e}",
+        verticalalignment="top",
+        horizontalalignment="left",
+        color="blue",
+        fontsize=15,
+        bbox={"facecolor": "white", "alpha": 0.8, "pad": 5},
+    )
+    plt.legend()
+    plt.savefig(os.path.join(outdir, "accu_epochs.pdf"))
+    plt.close()
+    print(tcols.OKGREEN + f"Accuracy vs epochs plot saved to {outdir}." + tcols.ENDC)
 
 
 class tcols:

@@ -1,12 +1,25 @@
 # from the deepset paper: https://github.com/manzilzaheer/DeepSets/blob/master/PointClouds/classifier.py
 
-import argparse
+import os
 import time
+import argparse
+parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+parser.add_argument("--config_file", type=str, default='default_cofig.yml')
+parser.add_argument("--seed", type=int, default=42)
+args = parser.parse_args()
+
+import numpy as np
+np.random.seed(args.seed)
+import random
+random.seed(args.seed)
+import torch
+torch.manual_seed(args.seed)
 
 import yaml
-import numpy as np
-import torch
 import torch.nn as nn
+import torch_geometric
 from torch.utils.data import DataLoader
 
 import util
@@ -18,45 +31,48 @@ def main(config: dict):
     outdir = util.make_output_directory('trained_deepsets', config['outdir'])
     util.save_config_file(config, outdir)
 
-    train_data = import_data(device, config, valid=False)
-    valid_data = import_data(device, config, valid=True)
+    config['outdir'] = os.path.join(config['outdir'], f'seed{args.seed}')
+    outdir = util.make_output_directory('trained_deepsets', config['outdir'])
 
-    input_dim = train_data.dataset[0]['pointcloud'].size()[-1]
-    output_dim = len(train_data.dataset.classes)
-    config['model_hyperparams'].update({'output_dim': output_dim})
-    config['model_hyperparams'].update({'input_dim': input_dim})
+    train_data = import_data(device, config['data_hyperparams'], train=True)
+    valid_data = import_data(device, config['data_hyperparams'], train=False)
+
     model = util.choose_deepsets(config['deepsets_type'], config['model_hyperparams'])
-
     hist = train(model, train_data, valid_data, device, config['training_hyperparams'])
 
-    torch.save(model, outdir)
+    model_file = os.path.join(outdir, 'model.pt')
+    torch.save(model.state_dict(), model_file)
+    util.loss_plot(hist['train_losses'], hist['valid_losses'], outdir)
+    util.accu_plot(hist['train_accurs'], hist['valid_accurs'], outdir)
 
 
-def import_data(device: str, config: dict, valid: bool) -> DataLoader:
-    """Imports the data into a torch data set."""
-    data_hyperparams = config['data_hyperparams']
-    if valid:
-        transforms = util.get_pointcloud_transformations(data_hyperparams['valid_trans'])
+def import_data(device:str, config: dict, train: bool) -> DataLoader:
+    """Imports the Modelnet40 data using the pytorch geometric package."""
+
+    print(util.tcols.OKGREEN + "Importing data: " + util.tcols.ENDC, end='')
+    pre_transforms = util.get_torchgeometric_pretransforms(config['pretransforms'])
+    transforms = util.get_torchgeometric_transforms(config['transforms'])
+
+    data = torch_geometric.datasets.ModelNet(
+        root=config["pc_rootdir"],
+        name=f"{config['classes']}",
+        train=train,
+        pre_transform=pre_transforms,
+        transform=transforms
+    )
+    if train:
+        print("training data imported!")
     else:
-        transforms = util.get_pointcloud_transformations(data_hyperparams['train_trans'])
-    data = Modelnet40DataLoader(data_hyperparams['pc_rootdir'], valid, transforms)
-    inv_classes = {i: cat for cat, i in data.classes.items()}
+        config['torch_dataloader']['shuffle'] = False
+        print("validation data imported!")\
 
-    print(util.tcols.OKGREEN + "Data loaded: " + util.tcols.ENDC)
-    if valid:
-        data_hyperparams['torch_dataloader'].update({'batch_size': len(data)})
-        print('Validation dataset size: ', len(data))
-    else:
-        print('Training dataset size: ', len(data))
-    print('Number of classes: ', len(data.classes))
-    print('Sample pointcloud shape: ', data[0]['pointcloud'].size())
-    print('Class: ', inv_classes[data[0]['category']], '\n')
-
-    dataloader_args = config['data_hyperparams']['torch_dataloader']
+    dataloader_args = config['torch_dataloader']
     if device == 'cpu':
-        return torch.utils.data.DataLoader(data, **dataloader_args)
+        return torch_geometric.loader.DenseDataLoader(data, **dataloader_args)
 
-    return torch.utils.data.DataLoader(data, pin_memory=True, **dataloader_args)
+    return torch_geometric.loader.DenseDataLoader(
+        data, pin_memory=True, **dataloader_args
+    )
 
 
 def train(
@@ -91,17 +107,17 @@ def train(
     epochs_es_limit = training_hyperparams['early_stopping']
     best_accu = 0
 
-    model.train()
     for epoch in range(epochs):
         batch_loss_sum = 0
         totnum_batches = 0
         batch_accu_sum = 0
-        for batch in train_data:
-            x_batch = batch['pointcloud'].to(device).float()
-            y_batch = batch['category'].to(device)
-            y_pred = nn.functional.softmax(model(x_batch), dim=1)
+        model.train()
+        for data in train_data:
+            data = data.to(device)
+            y_pred = model(data.pos)
+            y_true = data.y.flatten()
 
-            loss = loss_function(y_pred, y_batch)
+            loss = loss_function(y_pred, y_true)
             optimizer.zero_grad()
             loss.backward()
             clip_grad(model, training_hyperparams['clip_grad'])
@@ -109,17 +125,26 @@ def train(
 
             batch_loss_sum += loss
             totnum_batches += 1
-            batch_accu_sum += torch.sum(y_pred.max(dim=1)[1] == y_batch)/len(y_batch)
+            batch_accu_sum += torch.sum(y_pred.max(dim=1)[1] == y_true)/len(y_true)
 
         train_loss = batch_loss_sum/totnum_batches
         train_accu = batch_accu_sum/totnum_batches
         scheduler.step()
 
-        x_valid = valid_data['pointcloud'].to(device).float()
-        y_valid = valid_data['category'].to(device)
-        y_pred = model.predict(x_valid)
-        valid_loss = loss_function(y_pred, y_valid)
-        valid_accu = torch.sum(y_pred == y_valid)/len(y_valid)
+        for data in valid_data:
+            data = data.to(device)
+            y_true = data.y.flatten()
+            y_pred = model.predict(data.pos)
+
+            loss = loss_function(y_pred, y_true)
+            accu = torch.sum(y_pred.max(dim=1)[1] == y_true)/len(y_true)
+            batch_accu_sum += accu
+            batch_loss_sum += loss
+            totnum_batches += 1
+
+        valid_loss = batch_loss_sum/totnum_batches
+        valid_accu = batch_accu_sum/totnum_batches
+
         if valid_accu <= best_accu:
             epochs_no_improve += 1
         else:
@@ -131,8 +156,8 @@ def train(
 
         all_train_loss.append(train_loss.item())
         all_valid_loss.append(valid_loss.item())
-        all_train_accu.append(train_accu)
-        all_valid_accu.append(valid_accu)
+        all_train_accu.append(train_accu.item())
+        all_valid_accu.append(valid_accu.item())
 
         print_metrics(epoch, epochs, train_loss, train_accu, valid_loss, valid_accu)
 
@@ -177,11 +202,6 @@ def clip_grad(model, max_norm):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument("--config_file", type=str, default='default_cofig.yml')
-    args = parser.parse_args()
     with open(args.config_file, "r") as stream:
         try:
             config = yaml.safe_load(stream)

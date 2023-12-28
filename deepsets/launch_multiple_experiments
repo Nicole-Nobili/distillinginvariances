@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+nohup python -u train.py --config config_paper.yml --seed 42 > ./logs/deepsequiv_1000p_zaheer_idseed_1 &
+nohup python -u train.py --config config_paper.yml --seed 121 > ./logs/deepsequiv_1000p_zaheer_idseed_2 &
+nohup python -u train.py --config config_paper.yml --seed 308 > ./logs/deepsequiv_1000p_zaheer_idseed_3 &
+nohup python -u train.py --config config_paper.yml --seed 240 > ./logs/deepsequiv_1000p_zaheer_idseed_4 &
+nohup python -u train.py --config config_paper.yml --seed 101 > ./logs/deepsequiv_1000p_zaheer_idseed_5 &

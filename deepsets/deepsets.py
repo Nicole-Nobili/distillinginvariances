@@ -148,6 +148,19 @@ class DeepSetsEquivariant(nn.Module):
 
         return rho_output
 
+    @torch.no_grad()
+    def predict(self, x) -> np.ndarray:
+        """
+        Compute the prediction of the autoencoder.
+        @x_data :: Input array to pass through the autoencoder.
+
+        returns :: The latent space of the ae and the reco data.
+        """
+        self.eval()
+        output = self.forward(x)
+
+        return output
+
 
 class DeepSetsInvariant(nn.Module):
     """DeepSets permutation equivariant."""

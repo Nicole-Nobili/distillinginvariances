@@ -1,31 +1,30 @@
 ---
-outdir: 'deepsets_paper_1000p_notrans'
+define: &sampling 1000
+define: &classes 40
+
+outdir: 'deepsequiv_1000p_zaheer'
 data_hyperparams:
-  train_trans:
-    sampling: 1000
-    norm: True
-    rotation: False
-    noise: False
-    tensor: True
-  valid_trans:
-    sampling: 1000
-    norm: True
-    rotation: False
-    noise: False
-    tensor: True
   pc_rootdir: "../data/ModelNet40"
+  classes: *classes
+  pretransforms:
+    norm: True
+  transforms:
+    sampling: *sampling
   torch_dataloader:
     batch_size: 64
     shuffle: True
+    num_workers: 0
 
 deepsets_type: "equivariant"
 
 model_hyperparams:
+  input_dim: 3
   phi_layers: [256, 256, 256]
   rho_layers: [256]
   activ: "tanh"
   aggreg: "max"
   dropout: 0.5
+  output_dim: *classes
 
 training_hyperparams:
   lr: 0.001

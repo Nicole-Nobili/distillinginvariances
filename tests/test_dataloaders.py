@@ -5,10 +5,10 @@ import sys
 sys.path.append("../")
 
 from dataloader_mnist import MnistDataloader
-from dataloader_modelnet import Modelnet40DataLoader
+from deepsets.dataloader_modelnet import Modelnet40DataLoader
 
 import torchvision
-import modelnet_transforms
+import deepsets.modelnet_transforms
 
 
 def test_mnist_data_loading():
