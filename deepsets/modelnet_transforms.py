@@ -79,6 +79,18 @@ class RandRotationZ(object):
 
         rot_pointcloud = rot_matrix.dot(pointcloud.T).T
         return rot_pointcloud
+    
+    
+# The pointcloud is expected to be a numpy array where each row corresponds to a point.
+# I simply added a random shuffle function for randomly shuffeling the data points. 
+# The seed you seem to specify in the launch file. It seems you do not use the transformation yet. 
+
+class RandPermutation(object):
+    def __call__(self, pointcloud):
+        """Randomly permutes the points in the pointcloud."""
+        
+        perm_pointcloud = np.random.shuffle(pointcloud)
+        return perm_pointcloud
 
 
 class RandomNoise(object):
