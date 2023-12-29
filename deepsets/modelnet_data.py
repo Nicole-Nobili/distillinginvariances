@@ -124,8 +124,6 @@ class Modelnet40DataLoader(object):
         with open(pointcloud_path, "r") as pointcloud_file:
             pointcloud_object = self.__preprocess__(pointcloud_file)
 
-
-
         pointcloud_verts = pointcloud_object.verts
         return {"pointcloud": pointcloud_verts, "category": self.classes[category]}
 

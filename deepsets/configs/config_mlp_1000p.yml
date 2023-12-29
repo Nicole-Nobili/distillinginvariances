@@ -1,0 +1,31 @@
+---
+define: &sampling 1000
+define: &classes 40
+
+outdir: 'mlp_1000p'
+data_hyperparams:
+  pc_rootdir: "../data/ModelNet40"
+  classes: *classes
+  pretransforms:
+    norm: True
+  transforms:
+    sampling: *sampling
+  torch_dataloader:
+    batch_size: 64
+    shuffle: True
+    num_workers: 6
+
+mlp_type: "basic"
+
+model_hyperparams:
+  input_dim: 3
+  layers: []
+  activ: "relu"
+  output_dim: *classes
+
+training_hyperparams:
+  lr: 0.001
+  epochs: 1000
+  weight_decay: 0.0000001
+  clip_grad: 5
+  early_stopping: 20

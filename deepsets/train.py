@@ -3,17 +3,18 @@
 import os
 import time
 import argparse
-parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-parser.add_argument("--config_file", type=str, default='default_cofig.yml')
+
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("--config_file", type=str, default="default_cofig.yml")
 parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
 import numpy as np
 np.random.seed(args.seed)
+
 import random
 random.seed(args.seed)
+
 import torch
 torch.manual_seed(args.seed)
 
@@ -21,52 +22,95 @@ import yaml
 import torch.nn as nn
 import torch_geometric
 from torch.utils.data import DataLoader
+from deepspeed.profiling.flops_profiler import get_model_profile
 
 import util
 from modelnet_data import Modelnet40DataLoader
 
 
+OMP_NUM_THREADS=1
+MKL_NUM_THREADS=1
+
+
 def main(config: dict):
     device = util.define_torch_device()
-    outdir = util.make_output_directory('trained_deepsets', config['outdir'])
+    outdir = util.make_output_directory("trained_deepsets", config["outdir"])
     util.save_config_file(config, outdir)
 
-    config['outdir'] = os.path.join(config['outdir'], f'seed{args.seed}')
-    outdir = util.make_output_directory('trained_deepsets', config['outdir'])
+    config["outdir"] = os.path.join(config["outdir"], f"seed{args.seed}")
+    outdir = util.make_output_directory("trained_deepsets", config["outdir"])
 
-    train_data = import_data(device, config['data_hyperparams'], train=True)
-    valid_data = import_data(device, config['data_hyperparams'], train=False)
+    train_data = import_data(device, config["data_hyperparams"], train=True)
+    print_data_deets(train_data, "Training")
+    valid_data = import_data(device, config["data_hyperparams"], train=False)
+    print_data_deets(valid_data, "Validation")
 
-    model = util.choose_deepsets(config['deepsets_type'], config['model_hyperparams'])
-    hist = train(model, train_data, valid_data, device, config['training_hyperparams'])
+    model = get_model(config)
+    profile_model(model, train_data, outdir)
+    hist = train(model, train_data, valid_data, device, config["training_hyperparams"])
 
-    model_file = os.path.join(outdir, 'model.pt')
+    model_file = os.path.join(outdir, "model.pt")
     torch.save(model.state_dict(), model_file)
-    util.loss_plot(hist['train_losses'], hist['valid_losses'], outdir)
-    util.accu_plot(hist['train_accurs'], hist['valid_accurs'], outdir)
+    util.loss_plot(hist["train_losses"], hist["valid_losses"], outdir)
+    util.accu_plot(hist["train_accurs"], hist["valid_accurs"], outdir)
 
 
-def import_data(device:str, config: dict, train: bool) -> DataLoader:
+def profile_model(model: nn.Module, data: DataLoader, outdir: str):
+    """Profile the model and get the number of FLOPs it does during a forward pass."""
+    batch = next(iter(data))
+    outfile = os.path.join(outdir, 'profile.out')
+    flops, macs, params = get_model_profile(
+        model=model,
+        input_shape=tuple(batch.pos.size()),
+        args=None,
+        kwargs=None,
+        print_profile=True,
+        detailed=True,
+        module_depth=-1,
+        top_modules=2,
+        warm_up=10,
+        as_string=True,
+        output_file=outfile,
+        # output_file=None,
+        ignore_modules=None
+    )
+    print(util.tcols.OKGREEN + "Total flops: " + util.tcols.ENDC, flops)
+    print("-----------------")
+
+
+def get_model(config: dict):
+    model_hyperparams = config["model_hyperparams"]
+    if 'deepsets_type' in config.keys():
+        model = util.choose_deepsets(config["deepsets_type"], model_hyperparams)
+    elif 'mlp_type' in config.keys():
+        model = util.choose_mlp(config["mlp_type"], model_hyperparams)
+    else:
+        raise ValueError("Please specify in config  which kind of ML model you want.")
+
+    return model
+
+
+def import_data(device: str, config: dict, train: bool) -> DataLoader:
     """Imports the Modelnet40 data using the pytorch geometric package."""
-    print(util.tcols.OKGREEN + "Importing data: " + util.tcols.ENDC, end='')
-    pre_transforms = util.get_torchgeometric_pretransforms(config['pretransforms'])
-    transforms = util.get_torchgeometric_transforms(config['transforms'])
+    print(util.tcols.OKGREEN + "Importing data: " + util.tcols.ENDC, end="")
+    pre_transforms = util.get_torchgeometric_pretransforms(config["pretransforms"])
+    transforms = util.get_torchgeometric_transforms(config["transforms"])
 
     data = torch_geometric.datasets.ModelNet(
         root=config["pc_rootdir"],
         name=f"{config['classes']}",
         train=train,
         pre_transform=pre_transforms,
-        transform=transforms
+        transform=transforms,
     )
     if train:
         print("training data imported!")
     else:
-        config['torch_dataloader']['shuffle'] = False
+        config["torch_dataloader"]["shuffle"] = False
         print("validation data imported!")
 
-    dataloader_args = config['torch_dataloader']
-    if device == 'cpu':
+    dataloader_args = config["torch_dataloader"]
+    if device == "cpu":
         return torch_geometric.loader.DenseDataLoader(data, **dataloader_args)
 
     return torch_geometric.loader.DenseDataLoader(
@@ -74,20 +118,30 @@ def import_data(device:str, config: dict, train: bool) -> DataLoader:
     )
 
 
+def print_data_deets(data, data_type: str):
+    batch = next(iter(data))
+    print(util.tcols.HEADER + f"{data_type} data details:" + util.tcols.ENDC)
+    print(f"Batched data shape: {tuple(batch.pos.size())}")
+    print(f"Classes: {data.dataset.name}")
+    print(f"Pre-transforms: {data.dataset.pre_transform.transforms}")
+    print(f"Transforms: {data.dataset.transform.transforms}")
+    print("")
+
+
 def train(
     model: nn.Module,
     train_data: DataLoader,
     valid_data: DataLoader,
     device: str,
-    training_hyperparams: dict
+    training_hyperparams: dict,
 ):
     """Trains a given model on given data for a number of epochs."""
     model = model.to(device)
-    epochs = training_hyperparams['epochs']
+    epochs = training_hyperparams["epochs"]
     optimizer = torch.optim.Adam(
         model.parameters(),
-        lr=training_hyperparams['lr'],
-        weight_decay=training_hyperparams['weight_decay'],
+        lr=training_hyperparams["lr"],
+        weight_decay=training_hyperparams["weight_decay"],
     )
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=list(range(400, epochs, 400)), gamma=0.1
@@ -103,7 +157,7 @@ def train(
     all_valid_loss = []
     all_valid_accu = []
     epochs_no_improve = 0
-    epochs_es_limit = training_hyperparams['early_stopping']
+    epochs_es_limit = training_hyperparams["early_stopping"]
     best_accu = 0
 
     for epoch in range(epochs):
@@ -119,15 +173,15 @@ def train(
             loss = loss_function(y_pred, y_true)
             optimizer.zero_grad()
             loss.backward()
-            clip_grad(model, training_hyperparams['clip_grad'])
+            clip_grad(model, training_hyperparams["clip_grad"])
             optimizer.step()
 
             batch_loss_sum += loss
             totnum_batches += 1
-            batch_accu_sum += torch.sum(y_pred.max(dim=1)[1] == y_true)/len(y_true)
+            batch_accu_sum += torch.sum(y_pred.max(dim=1)[1] == y_true) / len(y_true)
 
-        train_loss = batch_loss_sum/totnum_batches
-        train_accu = batch_accu_sum/totnum_batches
+        train_loss = batch_loss_sum / totnum_batches
+        train_accu = batch_accu_sum / totnum_batches
         scheduler.step()
 
         for data in valid_data:
@@ -136,13 +190,13 @@ def train(
             y_pred = model.predict(data.pos)
 
             loss = loss_function(y_pred, y_true)
-            accu = torch.sum(y_pred.max(dim=1)[1] == y_true)/len(y_true)
+            accu = torch.sum(y_pred.max(dim=1)[1] == y_true) / len(y_true)
             batch_accu_sum += accu
             batch_loss_sum += loss
             totnum_batches += 1
 
-        valid_loss = batch_loss_sum/totnum_batches
-        valid_accu = batch_accu_sum/totnum_batches
+        valid_loss = batch_loss_sum / totnum_batches
+        valid_accu = batch_accu_sum / totnum_batches
 
         if valid_accu <= best_accu:
             epochs_no_improve += 1
@@ -164,15 +218,17 @@ def train(
         "train_losses": all_train_loss,
         "train_accurs": all_train_accu,
         "valid_losses": all_valid_loss,
-        "valid_accurs": all_valid_accu
+        "valid_accurs": all_valid_accu,
     }
 
 
 def print_metrics(epoch, epochs, train_loss, train_accu, valid_loss, valid_accu):
     """Prints the training and validation metrics in a nice format."""
     print(
-        util.tcols.OKGREEN + f"Epoch : {epoch + 1}/{epochs}\n" + util.tcols.ENDC +
-        f"Train loss (average) = {train_loss.item():.8f}\n"
+        util.tcols.OKGREEN
+        + f"Epoch : {epoch + 1}/{epochs}\n"
+        + util.tcols.ENDC
+        + f"Train loss (average) = {train_loss.item():.8f}\n"
         f"Train accuracy  = {train_accu:.8f}\n"
         f"Valid loss = {valid_loss.item():.8f}\n"
         f"Valid accuracy = {valid_accu:.8f}\n"
@@ -191,7 +247,7 @@ def clip_grad(model, max_norm):
     total_norm = 0
     for p in model.parameters():
         param_norm = p.grad.data.norm(2)
-        total_norm += param_norm ** 2
+        total_norm += param_norm**2
     total_norm = total_norm ** (0.5)
     clip_coef = max_norm / (total_norm + 1e-6)
     if clip_coef < 1:

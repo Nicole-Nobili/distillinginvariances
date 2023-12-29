@@ -26,8 +26,8 @@ class Distiller(nn.Module):
         self.temp = temp
 
         if load_student_from_path is not None:
-          state_dict = torch.load(load_student_from_path)
-          self.student.load_state_dict(state_dict)
+            state_dict = torch.load(load_student_from_path)
+            self.student.load_state_dict(state_dict)
 
     def distill(self, train_dataloader, epochs, save_path_folder: None):
         self.student_loss_running = []
@@ -77,9 +77,9 @@ class Distiller(nn.Module):
         print(f"Total loss: {total_loss}")
 
         if save_path_folder is not None:
-          save_path = save_path_folder + 'distiller'
-          torch.save(self.student.state_dict(), save_path)
-          print('saved model')
+            save_path = save_path_folder + 'distiller'
+            torch.save(self.student.state_dict(), save_path)
+            print('saved model')
 
     def get_student(self):
        return self.student
@@ -90,13 +90,12 @@ class Distiller(nn.Module):
             correct = 0
             total = 0
 
-          for x,y in test_loader:
-            x = x.to(self.device)
-            y = y.to(self.device)
-            y_prediction = self.student(x.view(-1,784))
-            _, predicted = torch.max(y_prediction.data,1)
-            total += y.size(0)
-            correct += (predicted == y).sum().item()
-            
-          accuracy = correct/total
-          print(f'Test Accuracy: {accuracy:.4f}')
+            for x,y in test_loader:
+                x = x.to(self.device)
+                y = y.to(self.device)
+                y_prediction = self.student(x.view(-1,784))
+                _, predicted = torch.max(y_prediction.data,1)
+                total += y.size(0)
+                correct += (predicted == y).sum().item()
+                accuracy = correct/total
+                print(f'Test Accuracy: {accuracy:.4f}')

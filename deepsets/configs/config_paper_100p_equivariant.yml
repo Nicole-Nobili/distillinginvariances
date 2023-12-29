@@ -1,0 +1,34 @@
+---
+define: &sampling 100
+define: &classes 40
+
+outdir: 'deepsequiv_100p_zaheer'
+data_hyperparams:
+  pc_rootdir: "../data/ModelNet40"
+  classes: *classes
+  pretransforms:
+    norm: True
+  transforms:
+    sampling: *sampling
+  torch_dataloader:
+    batch_size: 64
+    shuffle: True
+    num_workers: 0
+
+deepsets_type: "invariant"
+
+model_hyperparams:
+  input_dim: 3
+  phi_layers: [256, 256, 256]
+  rho_layers: [256]
+  activ: "tanh"
+  aggreg: "max"
+  dropout: 0.5
+  output_dim: *classes
+
+training_hyperparams:
+  lr: 0.001
+  epochs: 1000
+  weight_decay: 0.0000001
+  clip_grad: 5
+  early_stopping: 30

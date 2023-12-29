@@ -1,4 +1,4 @@
-# DeepSets implementation from DeepSets - Zaheer et. al. 
+# DeepSets implementation from DeepSets - Zaheer et. al.
 
 import numpy as np
 
@@ -13,6 +13,7 @@ class PermutationEquivariantMean(nn.Module):
         input_dim: The input dimension of this layer.
         output_dim: The output dimension of this layer.
     """
+
     def __init__(self, input_dim, output_dim):
         super(PermutationEquivariantMean, self).__init__()
         # Two linear layers, denoted gamma and lambda in the paper.
@@ -36,6 +37,7 @@ class PermutationEquivariantMax(nn.Module):
         input_dim: The input dimension of this layer.
         output_dim: The output dimension of this layer.
     """
+
     def __init__(self, input_dim, output_dim):
         super(PermutationEquivariantMax, self).__init__()
         # Two linear layers, denoted gamma and lambda in the paper.
@@ -55,9 +57,9 @@ class PermutationEquivariantMax(nn.Module):
 def activ_string_to_torch(activ: str):
     """Converts activation name from string to a torch objects."""
     activations = {
-        "relu":  lambda: nn.ReLU(inplace=True),
-        "tanh":  lambda: nn.Tanh(),
-        "sigmoid":  lambda: nn.Sigmoid(),
+        "relu": lambda: nn.ReLU(inplace=True),
+        "tanh": lambda: nn.Tanh(),
+        "sigmoid": lambda: nn.Sigmoid(),
     }
     activation = activations.get(activ, lambda: None)()
     if activation is None:
@@ -70,6 +72,7 @@ def activ_string_to_torch(activ: str):
 
 class DeepSetsEquivariant(nn.Module):
     """DeepSets permutation equivariant."""
+
     def __init__(
         self,
         input_dim: int,
@@ -78,7 +81,7 @@ class DeepSetsEquivariant(nn.Module):
         activ: str,
         aggreg: str,
         dropout: float,
-        output_dim: int
+        output_dim: int,
     ):
         super(DeepSetsEquivariant, self).__init__()
         self.activ = activ
@@ -97,7 +100,7 @@ class DeepSetsEquivariant(nn.Module):
         self.phi_layers.insert(0, self.input_dim)
         for nlayer in range(len(self.phi_layers) - 1):
             layer = PermutationEquivariantMean(
-                self.phi_layers[nlayer], self.phi_layers[nlayer+1]
+                self.phi_layers[nlayer], self.phi_layers[nlayer + 1]
             )
             activ = activ_string_to_torch(self.activ)
             phi.append(layer)
@@ -129,7 +132,7 @@ class DeepSetsEquivariant(nn.Module):
         """Gets the desired aggregation function specified through the aggr string."""
         aggregations = {
             "mean": lambda: torch.mean,
-            "max":  lambda: torch.max,
+            "max": lambda: torch.max,
         }
         aggregation = aggregations.get(aggreg, lambda: None)()
         if aggregation is None:
@@ -158,6 +161,7 @@ class DeepSetsEquivariant(nn.Module):
 
 class DeepSetsInvariant(nn.Module):
     """DeepSets permutation equivariant."""
+
     def __init__(
         self,
         input_dim: int,
@@ -166,7 +170,7 @@ class DeepSetsInvariant(nn.Module):
         activ: str,
         aggreg: str,
         dropout: float,
-        output_dim: int
+        output_dim: int,
     ):
         super(DeepSetsInvariant, self).__init__()
         self.activ = activ
@@ -184,7 +188,7 @@ class DeepSetsInvariant(nn.Module):
         phi = nn.Sequential()
         self.phi_layers.insert(0, self.input_dim)
         for nlayer in range(len(self.phi_layers) - 1):
-            layer = nn.Linear(self.phi_layers[nlayer], self.phi_layers[nlayer+1])
+            layer = nn.Linear(self.phi_layers[nlayer], self.phi_layers[nlayer + 1])
             activ = activ_string_to_torch(self.activ)
             phi.append(layer)
             phi.append(activ)
@@ -213,10 +217,7 @@ class DeepSetsInvariant(nn.Module):
 
     def _get_aggregation(self, aggreg: str):
         """Gets the desired aggregation function specified through the aggr string."""
-        aggregations = {
-            "mean": lambda: torch.mean,
-            "max":  lambda: torch.max
-        }
+        aggregations = {"mean": lambda: torch.mean, "max": lambda: torch.max}
         aggregation = aggregations.get(aggreg, lambda: None)()
         if aggregation is None:
             raise ValueError(

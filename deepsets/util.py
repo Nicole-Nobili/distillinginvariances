@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 
 from deepsets import DeepSetsEquivariant
 from deepsets import DeepSetsInvariant
+from mlp import MLPBasic
 import modelnet_transforms
 from torch_geometric.transforms import SamplePoints
 
@@ -54,13 +55,31 @@ def choose_deepsets(choice: str, model_hyperparams: dict):
     return model
 
 
+def choose_mlp(choice: str, model_hyperparams: dict):
+    """Imports a DeepSets model."""
+    mlp = {
+        "basic": lambda: MLPBasic(**model_hyperparams),
+        # "regularised": lambda: MLPRegularised(**model_hyperparams), WIP
+    }
+    model = mlp.get(choice, lambda: None)()
+    if model is None:
+        raise ValueError(
+            f"{choice} is not the name of an MLP  model. Options: {mlp.keys()}."
+        )
+
+    print(tcols.OKBLUE + "Network ready for training:" + tcols.ENDC)
+    torchinfo.summary(model)
+
+    return model
+
+
 def get_torchgeometric_pretransforms(pretransforms: dict):
     """Get the pre-transformations to include in the modelnet loader class.
 
     The data is saved to disk with these transformations applied.
     """
     tg_pretransforms = []
-    if pretransforms['norm']:
+    if pretransforms["norm"]:
         tg_pretransforms.append(torch_geometric.transforms.NormalizeScale())
 
     return torch_geometric.transforms.Compose(tg_pretransforms)
@@ -72,10 +91,9 @@ def get_torchgeometric_transforms(transforms: dict):
     These transformations are applied as each pointcloud is loaded.
     """
     tg_transforms = []
-    if 'sampling' in transforms.keys():
+    if "sampling" in transforms.keys():
         tg_transforms.append(
-                torch_geometric.transforms.SamplePoints(transforms['sampling']
-            )
+            torch_geometric.transforms.SamplePoints(transforms["sampling"])
         )
 
     return torch_geometric.transforms.Compose(tg_transforms)
