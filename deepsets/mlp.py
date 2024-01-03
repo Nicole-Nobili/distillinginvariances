@@ -24,6 +24,7 @@ def activ_string_to_torch(activ: str):
 
 class MLPBasic(nn.Module):
     """Basic MLP with variable number of layers."""
+
     def __init__(self, input_dim: int, layers: list, output_dim: int, activ: str):
         self.activ = activ
         self.input_dim = input_dim
@@ -50,4 +51,4 @@ class MLPBasic(nn.Module):
 
     def predict(self, x):
         self.eval()
-        return self.mlp()
+        return self.mlp(x)

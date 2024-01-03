@@ -9,15 +9,14 @@ import numpy as np
 
 class Distiller(nn.Module):
     def __init__(
-            self,
-            student: nn.Module,
-            teacher: nn.Module,
-            device: str,
-            lr = 0.001,
-            temp: float = 3.5,
-            alpha: float = 0
-        ):
-
+        self,
+        student: nn.Module,
+        teacher: nn.Module,
+        device: str,
+        lr=0.001,
+        temp: float = 3.5,
+        alpha: float = 0,
+    ):
         super(Distiller, self).__init__()
         self.student = student
         self.teacher = teacher
@@ -70,8 +69,9 @@ class Distiller(nn.Module):
                 self.optimiser.zero_grad()
                 total_loss.mean().backward()
                 self.optimiser.step()
-                student_accu = \
-                    torch.sum(student_predictions.max(dim=1)[1] == y_true) / len(y_true)
+                student_accu = torch.sum(
+                    student_predictions.max(dim=1)[1] == y_true
+                ) / len(y_true)
 
                 student_loss_running.append(student_loss.item())
                 distill_loss_running.append(distillation_loss.item())
@@ -105,8 +105,9 @@ class Distiller(nn.Module):
                 total_loss = (
                     self.alpha * student_loss + (1 - self.alpha) * distillation_loss
                 )
-                student_accu = \
-                    torch.sum(student_predictions.max(dim=1)[1] == y_true) / len(y_true)
+                student_accu = torch.sum(
+                    student_predictions.max(dim=1)[1] == y_true
+                ) / len(y_true)
 
                 student_loss_running.append(student_loss.item())
                 distill_loss_running.append(distillation_loss.item())

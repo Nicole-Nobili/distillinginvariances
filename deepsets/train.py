@@ -9,13 +9,16 @@ parser.add_argument("--config_file", type=str, default="default_cofig.yml")
 parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
-import numpy as np
-np.random.seed(args.seed)
-
 import random
+
 random.seed(args.seed)
 
+import numpy as np
+
+np.random.seed(args.seed)
+
 import torch
+
 torch.manual_seed(args.seed)
 
 import yaml
@@ -25,11 +28,6 @@ from torch.utils.data import DataLoader
 from deepspeed.profiling.flops_profiler import get_model_profile
 
 import util
-from modelnet_data import Modelnet40DataLoader
-
-
-OMP_NUM_THREADS=1
-MKL_NUM_THREADS=1
 
 
 def main(config: dict):
@@ -40,12 +38,12 @@ def main(config: dict):
     config["outdir"] = os.path.join(config["outdir"], f"seed{args.seed}")
     outdir = util.make_output_directory("trained_deepsets", config["outdir"])
 
-    train_data = import_data(device, config["data_hyperparams"], train=True)
-    print_data_deets(train_data, "Training")
-    valid_data = import_data(device, config["data_hyperparams"], train=False)
-    print_data_deets(valid_data, "Validation")
+    train_data = util.import_data(device, config["data_hyperparams"], train=True)
+    util.print_data_deets(train_data, "Training")
+    valid_data = util.import_data(device, config["data_hyperparams"], train=False)
+    util.print_data_deets(valid_data, "Validation")
 
-    model = get_model(config)
+    model = util.get_model(config)
     profile_model(model, train_data, outdir)
     hist = train(model, train_data, valid_data, device, config["training_hyperparams"])
 
@@ -58,7 +56,7 @@ def main(config: dict):
 def profile_model(model: nn.Module, data: DataLoader, outdir: str):
     """Profile the model and get the number of FLOPs it does during a forward pass."""
     batch = next(iter(data))
-    outfile = os.path.join(outdir, 'profile.out')
+    outfile = os.path.join(outdir, "profile.out")
     flops, macs, params = get_model_profile(
         model=model,
         input_shape=tuple(batch.pos.size()),
@@ -71,61 +69,10 @@ def profile_model(model: nn.Module, data: DataLoader, outdir: str):
         warm_up=10,
         as_string=True,
         output_file=outfile,
-        # output_file=None,
-        ignore_modules=None
+        ignore_modules=None,
     )
     print(util.tcols.OKGREEN + "Total flops: " + util.tcols.ENDC, flops)
     print("-----------------")
-
-
-def get_model(config: dict):
-    model_hyperparams = config["model_hyperparams"]
-    if 'deepsets_type' in config.keys():
-        model = util.choose_deepsets(config["deepsets_type"], model_hyperparams)
-    elif 'mlp_type' in config.keys():
-        model = util.choose_mlp(config["mlp_type"], model_hyperparams)
-    else:
-        raise ValueError("Please specify in config  which kind of ML model you want.")
-
-    return model
-
-
-def import_data(device: str, config: dict, train: bool) -> DataLoader:
-    """Imports the Modelnet40 data using the pytorch geometric package."""
-    print(util.tcols.OKGREEN + "Importing data: " + util.tcols.ENDC, end="")
-    pre_transforms = util.get_torchgeometric_pretransforms(config["pretransforms"])
-    transforms = util.get_torchgeometric_transforms(config["transforms"])
-
-    data = torch_geometric.datasets.ModelNet(
-        root=config["pc_rootdir"],
-        name=f"{config['classes']}",
-        train=train,
-        pre_transform=pre_transforms,
-        transform=transforms,
-    )
-    if train:
-        print("training data imported!")
-    else:
-        config["torch_dataloader"]["shuffle"] = False
-        print("validation data imported!")
-
-    dataloader_args = config["torch_dataloader"]
-    if device == "cpu":
-        return torch_geometric.loader.DenseDataLoader(data, **dataloader_args)
-
-    return torch_geometric.loader.DenseDataLoader(
-        data, pin_memory=True, **dataloader_args
-    )
-
-
-def print_data_deets(data, data_type: str):
-    batch = next(iter(data))
-    print(util.tcols.HEADER + f"{data_type} data details:" + util.tcols.ENDC)
-    print(f"Batched data shape: {tuple(batch.pos.size())}")
-    print(f"Classes: {data.dataset.name}")
-    print(f"Pre-transforms: {data.dataset.pre_transform.transforms}")
-    print(f"Transforms: {data.dataset.transform.transforms}")
-    print("")
 
 
 def train(

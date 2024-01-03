@@ -3,6 +3,7 @@
 import os
 import warnings
 import subprocess
+import random
 
 import yaml
 import numpy as np
@@ -16,8 +17,6 @@ import matplotlib.pyplot as plt
 from deepsets import DeepSetsEquivariant
 from deepsets import DeepSetsInvariant
 from mlp import MLPBasic
-import modelnet_transforms
-from torch_geometric.transforms import SamplePoints
 
 
 def make_output_directories(locations: list | str, outdir: str) -> list:
@@ -49,7 +48,7 @@ def choose_deepsets(choice: str, model_hyperparams: dict):
             f"{choice} is not the name of a DS model. Options: {deepsets.keys()}."
         )
 
-    print(tcols.OKBLUE + "Network ready for training:" + tcols.ENDC)
+    print(tcols.OKBLUE + "Network architecture:" + tcols.ENDC)
     torchinfo.summary(model)
 
     return model
@@ -67,10 +66,58 @@ def choose_mlp(choice: str, model_hyperparams: dict):
             f"{choice} is not the name of an MLP  model. Options: {mlp.keys()}."
         )
 
-    print(tcols.OKBLUE + "Network ready for training:" + tcols.ENDC)
+    print(tcols.OKBLUE + "Network architecture:" + tcols.ENDC)
     torchinfo.summary(model)
 
     return model
+
+
+def get_model(config: dict):
+    model_hyperparams = config["model_hyperparams"]
+    if "deepsets_type" in config.keys():
+        model = choose_deepsets(config["deepsets_type"], model_hyperparams)
+    elif "mlp_type" in config.keys():
+        model = choose_mlp(config["mlp_type"], model_hyperparams)
+    else:
+        raise ValueError("Please specify in config  which kind of ML model you want.")
+
+    return model
+
+
+def import_data(device: str, config: dict, train: bool):
+    """Imports the Modelnet40 data using the pytorch geometric package."""
+    print(tcols.OKGREEN + "Importing data: " + tcols.ENDC, end="")
+    pre_transforms = get_torchgeometric_pretransforms(config["pretransforms"])
+    transforms = get_torchgeometric_transforms(config["transforms"])
+
+    data = torch_geometric.datasets.ModelNet(
+        root=config["pc_rootdir"],
+        name=f"{config['classes']}",
+        train=train,
+        pre_transform=pre_transforms,
+        transform=transforms,
+    )
+    if train:
+        print("training data imported!")
+    else:
+        config["torch_dataloader"]["shuffle"] = False
+        print("validation data imported!")
+
+    dl_args = config["torch_dataloader"]
+    if device == "cpu":
+        return torch_geometric.loader.DenseDataLoader(data, **dl_args)
+
+    return torch_geometric.loader.DenseDataLoader(data, pin_memory=True, **dl_args)
+
+
+def print_data_deets(data, data_type: str):
+    batch = next(iter(data))
+    print(tcols.HEADER + f"{data_type} data details:" + tcols.ENDC)
+    print(f"Batched data shape: {tuple(batch.pos.size())}")
+    print(f"Classes: {data.dataset.name}")
+    print(f"Pre-transforms: {data.dataset.pre_transform.transforms}")
+    print(f"Transforms: {data.dataset.transform.transforms}")
+    print("")
 
 
 def get_torchgeometric_pretransforms(pretransforms: dict):
@@ -104,6 +151,17 @@ def save_config_file(config: dict, outdir: str):
     outfile = os.path.join(outdir, "config.yml")
     with open(outfile, "w") as file:
         yaml.dump(config, file)
+
+
+def load_config_file(config_file: str):
+    """Saves the config file into given output directory."""
+    with open(config_file, "r") as stream:
+        try:
+            config = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+
+    return config
 
 
 def define_torch_device() -> torch.device:
