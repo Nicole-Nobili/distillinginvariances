@@ -38,6 +38,7 @@ def main(args: dict):
     util.print_data_deets(valid_data, "Validation")
 
     model = util.get_model(config)
+    util.profile_model(model, valid_data, args.models_dir)
     all_metrics = {"accu": [], "nlll": [], "ecel": []}
     for model_dir in model_dirs:
         print(util.tcols.HEADER + f"Model at: {model_dir}" + util.tcols.ENDC)

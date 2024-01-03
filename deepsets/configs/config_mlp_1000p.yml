@@ -13,13 +13,13 @@ data_hyperparams:
   torch_dataloader:
     batch_size: 64
     shuffle: True
-    num_workers: 6
+    num_workers: 12
 
 mlp_type: "basic"
 
 model_hyperparams:
   input_dim: 3
-  layers: []
+  layers: [512, 512, 256, 256]
   activ: "relu"
   output_dim: *classes
 

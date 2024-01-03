@@ -13,6 +13,8 @@ import torchvision
 import torchinfo
 import torch_geometric
 import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
+from deepspeed.profiling.flops_profiler import get_model_profile
 
 from deepsets import DeepSetsEquivariant
 from deepsets import DeepSetsInvariant
@@ -179,11 +181,11 @@ def define_torch_device() -> torch.device:
     return device
 
 
-def get_free_gpu(threshold_vram_usage=30000, max_gpus=1):
+def get_free_gpu(threshold_vram_usage=1600, max_gpus=1):
     """
     Returns the free gpu numbers on your system.
 
-    Tto replace x in the string 'cuda:x'. The freeness is determined based on how much
+    To replace x in the string 'cuda:x'. The freeness is determined based on how much
     memory is currently being used on a gpu.
 
     Args:
@@ -269,6 +271,28 @@ def accu_plot(all_train_accs: list, all_valid_accs: list, outdir: str):
     plt.savefig(os.path.join(outdir, "accu_epochs.pdf"))
     plt.close()
     print(tcols.OKGREEN + f"Accuracy vs epochs plot saved to {outdir}." + tcols.ENDC)
+
+
+def profile_model(model: nn.Module, data: DataLoader, outdir: str):
+    """Profile the model and get the number of FLOPs it does during a forward pass."""
+    batch = next(iter(data))
+    outfile = os.path.join(outdir, "profile.out")
+    flops, macs, params = get_model_profile(
+        model=model,
+        input_shape=tuple(batch.pos.size()),
+        args=None,
+        kwargs=None,
+        print_profile=True,
+        detailed=True,
+        module_depth=-1,
+        top_modules=2,
+        warm_up=10,
+        as_string=True,
+        output_file=outfile,
+        ignore_modules=None,
+    )
+    print(tcols.OKGREEN + "Total flops: " + tcols.ENDC, flops)
+    print("-----------------")
 
 
 class tcols:

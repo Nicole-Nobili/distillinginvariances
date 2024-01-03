@@ -25,7 +25,6 @@ import yaml
 import torch.nn as nn
 import torch_geometric
 from torch.utils.data import DataLoader
-from deepspeed.profiling.flops_profiler import get_model_profile
 
 import util
 
@@ -44,35 +43,13 @@ def main(config: dict):
     util.print_data_deets(valid_data, "Validation")
 
     model = util.get_model(config)
-    profile_model(model, train_data, outdir)
+    util.profile_model(model, train_data, outdir)
     hist = train(model, train_data, valid_data, device, config["training_hyperparams"])
 
     model_file = os.path.join(outdir, "model.pt")
     torch.save(model.state_dict(), model_file)
     util.loss_plot(hist["train_losses"], hist["valid_losses"], outdir)
     util.accu_plot(hist["train_accurs"], hist["valid_accurs"], outdir)
-
-
-def profile_model(model: nn.Module, data: DataLoader, outdir: str):
-    """Profile the model and get the number of FLOPs it does during a forward pass."""
-    batch = next(iter(data))
-    outfile = os.path.join(outdir, "profile.out")
-    flops, macs, params = get_model_profile(
-        model=model,
-        input_shape=tuple(batch.pos.size()),
-        args=None,
-        kwargs=None,
-        print_profile=True,
-        detailed=True,
-        module_depth=-1,
-        top_modules=2,
-        warm_up=10,
-        as_string=True,
-        output_file=outfile,
-        ignore_modules=None,
-    )
-    print(util.tcols.OKGREEN + "Total flops: " + util.tcols.ENDC, flops)
-    print("-----------------")
 
 
 def train(

@@ -26,6 +26,7 @@ class MLPBasic(nn.Module):
     """Basic MLP with variable number of layers."""
 
     def __init__(self, input_dim: int, layers: list, output_dim: int, activ: str):
+        super(MLPBasic, self).__init__()
         self.activ = activ
         self.input_dim = input_dim
         self.layers = layers
@@ -35,7 +36,7 @@ class MLPBasic(nn.Module):
 
     def _construct_mlp(self):
         self.layers.insert(0, self.input_dim)
-        self.layers.append(output_dim)
+        self.layers.append(self.output_dim)
 
         self.mlp = nn.Sequential()
         for nlayer in range(len(self.layers)):
