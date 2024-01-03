@@ -75,7 +75,7 @@ def train(
 
     loss_function = torch.nn.CrossEntropyLoss().cuda()
 
-    print(util.tcols.OKCYAN + "\n\nTraining the deepsets model..." + util.tcols.ENDC)
+    print(util.tcols.OKCYAN + "\n\nTraining model..." + util.tcols.ENDC)
     all_train_loss = []
     all_train_accu = []
     all_valid_loss = []

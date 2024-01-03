@@ -18,7 +18,7 @@ data_hyperparams:
 mlp_type: "basic"
 
 model_hyperparams:
-  input_dim: 3
+  input_dim: 3000
   layers: [512, 512, 256, 256]
   activ: "relu"
   output_dim: *classes

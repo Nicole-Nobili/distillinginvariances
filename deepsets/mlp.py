@@ -48,8 +48,9 @@ class MLPBasic(nn.Module):
             self.mlp.append(activation)
 
     def forward(self, x):
+        x = torch.flatten(x, start_dim=1)
         return self.mlp(x)
 
     def predict(self, x):
         self.eval()
-        return self.mlp(x)
+        return self.forward(x)
