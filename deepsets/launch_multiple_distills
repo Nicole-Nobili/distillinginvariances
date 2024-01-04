@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+nohup python -u distill.py --config configs/config_ds_distill_mlp_1000p.yml --seed 42 > ./logs/ds_distill_mlp_1000p_s42 &
+nohup python -u distill.py --config configs/config_ds_distill_mlp_1000p.yml --seed 121 > ./logs/ds_distill_mlp_1000p_s121 &
+nohup python -u distill.py --config configs/config_ds_distill_mlp_1000p.yml --seed 308 > ./logs/ds_distill_mlp_1000p_s308 &
+nohup python -u distill.py --config configs/config_ds_distill_mlp_1000p.yml --seed 240 > ./logs/ds_distill_mlp_1000p_s240 &
+nohup python -u distill.py --config configs/config_ds_distill_mlp_1000p.yml --seed 101 > ./logs/ds_distill_mlp_1000p_s101 &

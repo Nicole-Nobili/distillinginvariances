@@ -213,24 +213,24 @@ def get_free_gpu(threshold_vram_usage=1600, max_gpus=1):
     return gpus_to_use
 
 
-def loss_plot(all_train_losses: list, all_valid_losses: list, outdir: str):
+def loss_plot(all_train_losses: list, all_valid_losses: list, outdir: str, label = ""):
     """Plots the loss for each epoch for the training and validation data."""
     epochs = list(range(len(all_train_losses)))
     plt.plot(
         epochs,
         all_train_losses,
         color="gray",
-        label="Training Loss (average)",
+        label=f"Training loss",
     )
-    plt.plot(epochs, all_valid_losses, color="navy", label="Validation Loss")
+    plt.plot(epochs, all_valid_losses, color="navy", label="Validation loss")
     plt.xlabel("Epochs")
-    plt.ylabel("Loss")
+    plt.ylabel(f"{label} loss")
 
     best_valid_loss = min(all_valid_losses)
     plt.text(
         np.min(epochs),
         np.max(all_train_losses),
-        f"Min: {best_valid_loss:.2e}",
+        f"Min: {best_valid_loss:.3f}",
         verticalalignment="top",
         horizontalalignment="left",
         color="blue",
@@ -238,7 +238,7 @@ def loss_plot(all_train_losses: list, all_valid_losses: list, outdir: str):
         bbox={"facecolor": "white", "alpha": 0.8, "pad": 5},
     )
     plt.legend()
-    plt.savefig(os.path.join(outdir, "loss_epochs.pdf"))
+    plt.savefig(os.path.join(outdir, f"{label}_loss_epochs.pdf"))
     plt.close()
     print(tcols.OKGREEN + f"Loss vs epochs plot saved to {outdir}." + tcols.ENDC)
 

@@ -1,0 +1,31 @@
+---
+define: &sampling 1000
+define: &classes 40
+
+outdir: 'deepsinv_mlp_1000p'
+data_hyperparams:
+  pc_rootdir: "../data/ModelNet40"
+  classes: *classes
+  pretransforms:
+    norm: True
+  transforms:
+    sampling: *sampling
+  torch_dataloader:
+    batch_size: 64
+    shuffle: True
+    num_workers: 12
+
+teacher: "trained_deepsets/deepsinv_1000p_zaheer/"
+mlp_type: "basic"
+model_hyperparams:
+  input_dim: 3000
+  layers: [512, 512, 256, 256]
+  activ: "relu"
+  output_dim: *classes
+
+
+distill_hyperparams:
+  lr: 0.001
+  epochs: 1000
+  early_stopping: 15
+  alpha: 0
