@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 
-nohup python -u train.py --config configs/config_mlp_1000p.yml --seed 42 > ./logs/mlp_1000p_s42 &
-nohup python -u train.py --config configs/config_mlp_1000p.yml --seed 121 > ./logs/mlp_1000p_s121 &
-nohup python -u train.py --config configs/config_mlp_1000p.yml --seed 308 > ./logs/mlp_1000p_s308 &
-nohup python -u train.py --config configs/config_mlp_1000p.yml --seed 240 > ./logs/mlp_1000p_s240 &
-nohup python -u train.py --config configs/config_mlp_1000p.yml --seed 101 > ./logs/mlp_1000p_s101 &
+python -u train.py --config_file configs/config_paper_100p_equivariant.yml --seed 42 --optuna
+
+
+
+nohup python -u train.py --config configs/config_paper_100p_equivariant.yml --seed 42 > ./logs/deepsequiv_100p_zaheer_s42 &
+nohup python -u train.py --config configs/config_paper_100p_equivariant.yml --seed 121 > ./logs/deepsequiv_100p_zaheer_s121 &
+nohup python -u train.py --config configs/config_paper_100p_equivariant.yml --seed 308 > ./logs/deepsequiv_100p_zaheer_s308 &
+nohup python -u train.py --config configs/config_paper_100p_equivariant.yml --seed 240 > ./logs/deepsequiv_100p_zaheer_s240 &
+nohup python -u train.py --config configs/config_paper_100p_equivariant.yml --seed 101 > ./logs/deepsequiv_100p_zaheer_s101 &

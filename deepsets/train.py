@@ -3,11 +3,17 @@
 import os
 import time
 import argparse
+import pprint
+
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("--config_file", type=str, default="default_cofig.yml")
+parser.add_argument("--config_file", type=str, default="    ")
 parser.add_argument("--seed", type=int, default=42)
+# Add an argument for Optuna tuning
+parser.add_argument("--optuna", action="store_true", help="Run Optuna hyperparameter tuning")
+
 args = parser.parse_args()
+
 
 import random
 
@@ -28,8 +34,19 @@ from torch.utils.data import DataLoader
 
 import util
 
+import optuna
 
-def main(config: dict):
+
+
+def main(config, hyperparams=None, trial=None):
+    
+    """Optimization of Validation Metric: Ensure that the validation_metric returned by the main function is the metric
+    you intend to optimize.This metric should reflect the performance of your model effectively."""
+    
+    # Override specific hyperparameters in config with those from Optuna
+    if hyperparams:
+        config["training_hyperparams"].update(hyperparams)
+        
     device = util.define_torch_device()
     outdir = util.make_output_directory("trained_deepsets", config["outdir"])
     util.save_config_file(config, outdir)
@@ -43,13 +60,22 @@ def main(config: dict):
     util.print_data_deets(valid_data, "Validation")
 
     model = util.get_model(config)
-    util.profile_model(model, train_data, outdir)
-    hist = train(model, train_data, valid_data, device, config["training_hyperparams"])
+    # util.profile_model(model, train_data, outdir)  # seems not been done yet
+    
+    
+    # Pass the Optuna trial object to the train function
+    hist = train(model, train_data, valid_data, device, config["training_hyperparams"], trial)
+    if "validation_metric" not in hist:
+        print("Error: validation_metric not found in training results.")
+        return None
+    
 
     model_file = os.path.join(outdir, "model.pt")
     torch.save(model.state_dict(), model_file)
     util.loss_plot(hist["train_losses"], hist["valid_losses"], outdir)
     util.accu_plot(hist["train_accurs"], hist["valid_accurs"], outdir)
+    
+    return hist
 
 
 def train(
@@ -58,6 +84,8 @@ def train(
     valid_data: DataLoader,
     device: str,
     training_hyperparams: dict,
+    trial=None  # Add trial as an optional parameter
+
 ):
     """Trains a given model on given data for a number of epochs."""
     model = model.to(device)
@@ -82,7 +110,10 @@ def train(
     all_valid_accu = []
     epochs_no_improve = 0
     epochs_es_limit = training_hyperparams["early_stopping"]
-    best_accu = 0
+    # best_accu = 0
+
+    # added best validation loss
+    best_valid_loss = float('inf')
 
     for epoch in range(epochs):
         batch_loss_sum = 0
@@ -122,14 +153,18 @@ def train(
         valid_loss = batch_loss_sum / totnum_batches
         valid_accu = batch_accu_sum / totnum_batches
 
-        if valid_accu <= best_accu:
-            epochs_no_improve += 1
+        # Update best validation loss and check for early stopping
+        if valid_loss < best_valid_loss:
+            best_valid_loss = valid_loss
         else:
-            best_accu = valid_accu
-            epochs_no_improve = 0
-
-        if early_stopping(epochs_no_improve, epochs_es_limit):
-            break
+            if early_stopping(epochs_no_improve, epochs_es_limit):
+                break
+            
+         # Reporting to Optuna and checking for pruning
+        if trial:
+            trial.report(valid_loss, epoch)
+            if trial.should_prune():
+                raise optuna.exceptions.TrialPruned()
 
         all_train_loss.append(train_loss.item())
         all_valid_loss.append(valid_loss.item())
@@ -143,6 +178,8 @@ def train(
         "train_accurs": all_train_accu,
         "valid_losses": all_valid_loss,
         "valid_accurs": all_valid_accu,
+        "validation_metric": max(all_valid_accu)  # Use max since higher is better for accuracy
+
     }
 
 
@@ -180,11 +217,62 @@ def clip_grad(model, max_norm):
     return total_norm
 
 
+
+def objective(trial, config):
+    # Suggesting hyperparameters for training
+    training_hyperparams = {
+        "lr": trial.suggest_float("lr", 1e-5, 1e-2),
+        "weight_decay": trial.suggest_loguniform("weight_decay", 1e-10, 1e-3),
+        "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128, 256])
+    }
+    config["training_hyperparams"].update(training_hyperparams)
+
+    # Suggesting hyperparameters for the model
+    model_hyperparams = {
+        "dropout_rate": trial.suggest_float("dropout_rate", 0.0, 0.5),
+        "activ": trial.suggest_categorical("activ", ["relu", "tanh", "leaky_relu", "sigmoid"])
+    }
+    num_layers = trial.suggest_int("num_layers", 2, 15)
+    layers = [trial.suggest_int(f"nr_layer_{i}", 128, 1024, step=128) for i in range(num_layers)]
+    model_hyperparams["layers"] = layers
+    config["model_hyperparams"].update(model_hyperparams)
+
+    try:
+        result = main(config, trial=trial)
+        print(f"Trial {trial.number} Results:")
+        pprint.pprint({
+                "Parameters": trial.params,
+                "Validation Metric": result['validation_metric']
+                })
+        return result["validation_metric"]
+    except optuna.TrialPruned as e:
+        print(f"Trial {trial.number} pruned.")
+        raise e
+
+
+
+
+
+def run_optuna_study(config):
+    study = optuna.create_study(direction="maximize", pruner=optuna.pruners.MedianPruner())
+    study.optimize(lambda trial: objective(trial, config), n_trials=1000)
+    print("Best hyperparameters:", study.best_trial.params)
+
+   
+
+
+
+
 if __name__ == "__main__":
+    # Load config
     with open(args.config_file, "r") as stream:
         try:
             config = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             print(exc)
-
-    main(config)
+            
+     # Decide whether to run a regular training or Optuna study based on a condition or argument
+    if args.optuna: 
+        run_optuna_study(config)
+    else:
+        main(config)

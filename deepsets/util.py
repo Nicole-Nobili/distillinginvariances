@@ -14,7 +14,7 @@ import torchinfo
 import torch_geometric
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
-from deepspeed.profiling.flops_profiler import get_model_profile
+# from deepspeed.profiling.flops_profiler import get_model_profile
 
 from deepsets import DeepSetsEquivariant
 from deepsets import DeepSetsInvariant
@@ -57,21 +57,29 @@ def choose_deepsets(choice: str, model_hyperparams: dict):
 
 
 def choose_mlp(choice: str, model_hyperparams: dict):
-    """Imports a DeepSets model."""
-    mlp = {
-        "basic": lambda: MLPBasic(**model_hyperparams),
-        # "regularised": lambda: MLPRegularised(**model_hyperparams), WIP
-    }
-    model = mlp.get(choice, lambda: None)()
+    """Imports an MLP model."""
+
+    # Extract only the expected parameters for MLPBasic
+    if choice == "basic":
+        expected_params = {
+            "input_dim": model_hyperparams.get("input_dim"),
+            "layers": model_hyperparams.get("layers"),
+            "output_dim": model_hyperparams.get("output_dim"),
+            "activ": model_hyperparams.get("activ"),
+            "dropout_prob": model_hyperparams.get("dropout_rate")
+        }
+        model = MLPBasic(**expected_params)
+
+    # Add handling for other model types if necessary
+
     if model is None:
-        raise ValueError(
-            f"{choice} is not the name of an MLP  model. Options: {mlp.keys()}."
-        )
+        raise ValueError(f"{choice} is not the name of an MLP model. Options: {list(mlp.keys())}.")
 
     print(tcols.OKBLUE + "Network architecture:" + tcols.ENDC)
     torchinfo.summary(model)
 
     return model
+
 
 
 def get_model(config: dict):
@@ -273,26 +281,27 @@ def accu_plot(all_train_accs: list, all_valid_accs: list, outdir: str):
     print(tcols.OKGREEN + f"Accuracy vs epochs plot saved to {outdir}." + tcols.ENDC)
 
 
-def profile_model(model: nn.Module, data: DataLoader, outdir: str):
-    """Profile the model and get the number of FLOPs it does during a forward pass."""
-    batch = next(iter(data))
-    outfile = os.path.join(outdir, "profile.out")
-    flops, macs, params = get_model_profile(
-        model=model,
-        input_shape=tuple(batch.pos.size()),
-        args=None,
-        kwargs=None,
-        print_profile=True,
-        detailed=True,
-        module_depth=-1,
-        top_modules=2,
-        warm_up=10,
-        as_string=True,
-        output_file=outfile,
-        ignore_modules=None,
-    )
-    print(tcols.OKGREEN + "Total flops: " + tcols.ENDC, flops)
-    print("-----------------")
+# 
+#def profile_model(model: nn.Module, data: DataLoader, outdir: str):
+#    """Profile the model and get the number of FLOPs it does during a forward pass."""
+#    batch = next(iter(data))
+##    outfile = os.path.join(outdir, "profile.out")
+#    flops, macs, params = get_model_profile(
+#        model=model,
+#        input_shape=tuple(batch.pos.size()),
+#        args=None,
+#        kwargs=None,
+#        print_profile=True,
+#        detailed=True,
+#        module_depth=-1,
+#        top_modules=2,
+#        warm_up=10,
+#        as_string=True,
+#        output_file=outfile,
+#        ignore_modules=None,
+#    )
+#    print(tcols.OKGREEN + "Total flops: " + tcols.ENDC, flops)
+#    print("-----------------")
 
 
 class tcols:

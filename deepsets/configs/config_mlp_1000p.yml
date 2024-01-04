@@ -13,19 +13,20 @@ data_hyperparams:
   torch_dataloader:
     batch_size: 64
     shuffle: True
-    num_workers: 12
+    num_workers: 4
 
 mlp_type: "basic"
 
 model_hyperparams:
   input_dim: 3000
-  layers: [512, 512, 256, 256]
-  activ: "relu"
+  layers: [512, 512, 256, 256] # nr
+  activ: "relu" # others
+  # regularization dropout
   output_dim: *classes
 
 training_hyperparams:
   lr: 0.001
-  epochs: 1000
+  epochs: 1
   weight_decay: 0.0000001
   clip_grad: 5
   early_stopping: 20
