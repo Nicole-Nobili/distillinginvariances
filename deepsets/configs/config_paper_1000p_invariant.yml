@@ -4,18 +4,18 @@ define: &classes 40
 
 outdir: 'deepsinv_1000p_zaheer'
 data_hyperparams:
-  pc_rootdir: "../data/ModelNet40"
+  pc_rootdir: "../data/ModelNet40_1000p"
   classes: *classes
   pretransforms:
     norm: True
-  transforms:
     sampling: *sampling
+  transforms: null
   torch_dataloader:
     batch_size: 64
     shuffle: True
-    num_workers: 0
+    num_workers: 4
 
-deepsets_type: "invariant"
+model_type: "ds_invariant"
 
 model_hyperparams:
   input_dim: 3
@@ -31,4 +31,4 @@ training_hyperparams:
   epochs: 1000
   weight_decay: 0.0000001
   clip_grad: 5
-  early_stopping: 20
+  early_stopping: 30

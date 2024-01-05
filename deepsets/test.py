@@ -6,6 +6,7 @@ import argparse
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--models_dir", type=str)
+parser.add_argument("--device", type=str)
 parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
@@ -31,15 +32,15 @@ import util
 
 
 def main(args: dict):
-    device = util.define_torch_device()
+    device = args.device
     model_dirs = [x[0] for x in os.walk(args.models_dir)][1:]
     config = util.load_config_file(os.path.join(args.models_dir, "config.yml"))
     valid_data = util.import_data(device, config["data_hyperparams"], train=False)
     util.print_data_deets(valid_data, "Validation")
 
-    model = util.get_model(config)
+    model = util.get_model(config["model_type"], config["model_hyperparams"])
     util.profile_model(model, valid_data, args.models_dir)
-    all_metrics = {"accu": [], "nlll": [], "ecel": []}
+    all_metrics = {"accu": [], "nlll": [], "ecel": [], "invl": []}
 
     if "teacher" in config.keys():
         all_metrics.update({"top1_agreement": [], "teach_stu_kldiv": []})
@@ -67,8 +68,8 @@ def main(args: dict):
         for metric, value in all_metrics.items():
             metric_mean = np.mean(value)
             metric_std = np.std(value)
-            print(f"{metric}: {metric_mean:.3f} ± {metric_std:.3f}")
-            metrics_file.write(f"{metric_mean:.3f} ± {metric_std:.3f}")
+            print(f"{metric}: {metric_mean:.3e} ± {metric_std:.3e}")
+            metrics_file.write(f"{metric_mean:.3e} ± {metric_std:.3e}")
 
 
 
@@ -87,6 +88,7 @@ def validate(model: nn.Module, weights_file: str, valid_data: DataLoader, device
     batch_accu_sum = 0
     batch_nlll_sum = 0
     batch_ecel_sum = 0
+    batch_invl_sum = 0
     totnum_batches = 0
     for data in valid_data:
         data = data.to(device)
@@ -164,8 +166,8 @@ def test_perm_inv(model: nn.Module, data: DataLoader):
     y_normal = model.predict(data.pos)
     y_transf = model.predict(data_permuted)
 
-    inv_measures = invariance_measure(y_normal, y_transf)
-    return torch.sum(torch.cat(inv_measures))
+    inv_measure = invariance_measure(y_normal, y_transf)
+    return inv_measure
 
 
 def print_metrics(metrics: dict):

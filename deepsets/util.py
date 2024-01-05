@@ -14,11 +14,12 @@ import torchinfo
 import torch_geometric
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
-# from deepspeed.profiling.flops_profiler import get_model_profile
+from deepspeed.profiling.flops_profiler import get_model_profile
 
 from deepsets import DeepSetsEquivariant
 from deepsets import DeepSetsInvariant
 from mlp import MLPBasic
+from mlp import MLPReged
 
 
 def make_output_directories(locations: list | str, outdir: str) -> list:
@@ -41,8 +42,8 @@ def make_output_directory(location: str, outdir: str) -> str:
 def choose_deepsets(choice: str, model_hyperparams: dict):
     """Imports a DeepSets model."""
     deepsets = {
-        "invariant": lambda: DeepSetsInvariant(**model_hyperparams),
-        "equivariant": lambda: DeepSetsEquivariant(**model_hyperparams),
+        "ds_invariant": lambda: DeepSetsInvariant(**model_hyperparams),
+        "ds_equivariant": lambda: DeepSetsEquivariant(**model_hyperparams),
     }
     model = deepsets.get(choice, lambda: None)()
     if model is None:
@@ -59,21 +60,15 @@ def choose_deepsets(choice: str, model_hyperparams: dict):
 def choose_mlp(choice: str, model_hyperparams: dict):
     """Imports an MLP model."""
 
-    # Extract only the expected parameters for MLPBasic
-    if choice == "basic":
-        expected_params = {
-            "input_dim": model_hyperparams.get("input_dim"),
-            "layers": model_hyperparams.get("layers"),
-            "output_dim": model_hyperparams.get("output_dim"),
-            "activ": model_hyperparams.get("activ"),
-            "dropout_prob": model_hyperparams.get("dropout_rate")
-        }
-        model = MLPBasic(**expected_params)
-
     # Add handling for other model types if necessary
+    mlp = {
+        "mlp_basic": lambda: MLPBasic(**model_hyperparams),
+        "mlp_reged": lambda: MLPReged(**model_hyperparams),
+    }
 
+    model = mlp.get(choice, lambda: None)()
     if model is None:
-        raise ValueError(f"{choice} is not the name of an MLP model. Options: {list(mlp.keys())}.")
+        raise ValueError(f"{choice} is not an MLP model. Options: {mlp.keys()}.")
 
     print(tcols.OKBLUE + "Network architecture:" + tcols.ENDC)
     torchinfo.summary(model)
@@ -81,13 +76,11 @@ def choose_mlp(choice: str, model_hyperparams: dict):
     return model
 
 
-
-def get_model(config: dict):
-    model_hyperparams = config["model_hyperparams"]
-    if "deepsets_type" in config.keys():
-        model = choose_deepsets(config["deepsets_type"], model_hyperparams)
-    elif "mlp_type" in config.keys():
-        model = choose_mlp(config["mlp_type"], model_hyperparams)
+def get_model(model_type: str, model_hyperparams: dict):
+    if "ds" in model_type:
+        model = choose_deepsets(model_type, model_hyperparams)
+    elif "mlp" in model_type:
+        model = choose_mlp(model_type, model_hyperparams)
     else:
         raise ValueError("Please specify in config  which kind of ML model you want.")
 
@@ -126,7 +119,10 @@ def print_data_deets(data, data_type: str):
     print(f"Batched data shape: {tuple(batch.pos.size())}")
     print(f"Classes: {data.dataset.name}")
     print(f"Pre-transforms: {data.dataset.pre_transform.transforms}")
-    print(f"Transforms: {data.dataset.transform.transforms}")
+    if data.dataset.transform is  None:
+        print(f"Transforms: None")
+    else:
+        print(f"Transforms: {data.dataset.transform.transforms}")
     print("")
 
 
@@ -138,6 +134,10 @@ def get_torchgeometric_pretransforms(pretransforms: dict):
     tg_pretransforms = []
     if pretransforms["norm"]:
         tg_pretransforms.append(torch_geometric.transforms.NormalizeScale())
+    if "sampling" in pretransforms.keys():
+        tg_pretransforms.append(
+            torch_geometric.transforms.SamplePoints(pretransforms["sampling"])
+        )
 
     return torch_geometric.transforms.Compose(tg_pretransforms)
 
@@ -147,6 +147,9 @@ def get_torchgeometric_transforms(transforms: dict):
 
     These transformations are applied as each pointcloud is loaded.
     """
+    if transforms is None:
+        return None
+
     tg_transforms = []
     if "sampling" in transforms.keys():
         tg_transforms.append(
@@ -281,27 +284,29 @@ def accu_plot(all_train_accs: list, all_valid_accs: list, outdir: str):
     print(tcols.OKGREEN + f"Accuracy vs epochs plot saved to {outdir}." + tcols.ENDC)
 
 
-# 
-#def profile_model(model: nn.Module, data: DataLoader, outdir: str):
-#    """Profile the model and get the number of FLOPs it does during a forward pass."""
-#    batch = next(iter(data))
-##    outfile = os.path.join(outdir, "profile.out")
-#    flops, macs, params = get_model_profile(
-#        model=model,
-#        input_shape=tuple(batch.pos.size()),
-#        args=None,
-#        kwargs=None,
-#        print_profile=True,
-#        detailed=True,
-#        module_depth=-1,
-#        top_modules=2,
-#        warm_up=10,
-#        as_string=True,
-#        output_file=outfile,
-#        ignore_modules=None,
-#    )
-#    print(tcols.OKGREEN + "Total flops: " + tcols.ENDC, flops)
-#    print("-----------------")
+
+def profile_model(model: nn.Module, data: DataLoader, outdir: str = None):
+    """Profile the model and get the number of FLOPs it does during a forward pass."""
+    batch = next(iter(data))
+    outfile = None
+    if outdir:
+        outfile = os.path.join(outdir, "profile.out")
+    flops, macs, params = get_model_profile(
+        model=model,
+        input_shape=tuple(batch.pos.size()),
+        args=None,
+        kwargs=None,
+        print_profile=True,
+        detailed=True,
+        module_depth=-1,
+        top_modules=2,
+        warm_up=10,
+        as_string=True,
+        output_file=outfile,
+        ignore_modules=None,
+    )
+    print(tcols.OKGREEN + "Total flops: " + tcols.ENDC, flops)
+    print("-----------------")
 
 
 class tcols:

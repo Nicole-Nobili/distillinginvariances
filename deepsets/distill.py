@@ -7,6 +7,7 @@ import argparse
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--config_file", type=str, default="default_cofig.yml")
+parser.add_argument("--device", type=str)
 parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
@@ -32,7 +33,7 @@ import util
 
 
 def main(config: dict):
-    device = util.define_torch_device()
+    device = args.device
     outdir = util.make_output_directory("distilled_deepsets", config["outdir"])
     util.save_config_file(config, outdir)
     config_teacher = util.load_config_file(os.path.join(config["teacher"], "config.yml"))
@@ -46,13 +47,15 @@ def main(config: dict):
     util.print_data_deets(valid_data, "Validation")
 
     print(util.tcols.OKGREEN + "Teacher network" + util.tcols.ENDC)
-    teacher_model = util.get_model(config_teacher)
+    teacher_model = util.get_model(
+        config_teacher["model_type"], config_teacher["model_hyperparams"]
+    )
     weights_file = os.path.join(config["teacher"], "seed42", "model.pt")
     teacher_model.load_state_dict(torch.load(weights_file))
     util.profile_model(teacher_model, train_data, outdir)
 
     print(util.tcols.OKGREEN + "Student network" + util.tcols.ENDC)
-    student_model = util.get_model(config)
+    student_model = util.get_model(config["model_type"], config["model_hyperparams"])
     util.profile_model(student_model, train_data, outdir)
 
     distill_hyperparams = config["distill_hyperparams"]

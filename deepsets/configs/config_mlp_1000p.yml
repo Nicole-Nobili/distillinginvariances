@@ -4,29 +4,29 @@ define: &classes 40
 
 outdir: 'mlp_1000p'
 data_hyperparams:
-  pc_rootdir: "../data/ModelNet40"
+  pc_rootdir: "../data/ModelNet40_1000p"
   classes: *classes
   pretransforms:
     norm: True
-  transforms:
     sampling: *sampling
+  transforms: null
   torch_dataloader:
     batch_size: 64
     shuffle: True
     num_workers: 4
 
-mlp_type: "basic"
+model_type: "mlp_basic"
 
 model_hyperparams:
-  input_dim: 3000
-  layers: [512, 512, 256, 256] # nr
-  activ: "relu" # others
-  # regularization dropout
+  input_dim: 3
+  npts: *sampling
+  layers: [1024, 1024, 512, 256, 128]
+  activ: "relu"
   output_dim: *classes
 
 training_hyperparams:
   lr: 0.001
-  epochs: 1
+  epochs: 1000
   weight_decay: 0.0000001
-  clip_grad: 5
-  early_stopping: 20
+  # clip_grad: 5
+  early_stopping: 30

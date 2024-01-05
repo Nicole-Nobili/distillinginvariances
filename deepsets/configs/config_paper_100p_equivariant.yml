@@ -4,18 +4,18 @@ define: &classes 40
 
 outdir: 'deepsequiv_100p_zaheer'
 data_hyperparams:
-  pc_rootdir: "../data/ModelNet40"
+  pc_rootdir: "../data/ModelNet40_100p"
   classes: *classes
   pretransforms:
     norm: True
-  transforms:
     sampling: *sampling
+  transforms: null
   torch_dataloader:
     batch_size: 64
     shuffle: True
     num_workers: 0
 
-deepsets_type: "invariant"
+model_type: "ds_equivariant"
 
 model_hyperparams:
   input_dim: 3
