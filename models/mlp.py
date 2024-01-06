@@ -73,9 +73,10 @@ class MLP(nn.Module):
                         f"Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}"
                     )
         # Save the trained model
-        save_path = save_path_folder + "\mlp"
-        torch.save(self.state_dict(), save_path)
-        print(f"Model saved as {save_path}!")
+        if save_path_folder is not None:
+            save_path = save_path_folder + '\mlp'
+            torch.save(self.state_dict(), save_path)
+            print(f"Model saved as {save_path}!")
 
     def eval(self, test_loader):
         with torch.no_grad():

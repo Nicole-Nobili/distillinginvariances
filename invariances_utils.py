@@ -94,23 +94,24 @@ def invariance_measure(labels_normal, labels_shifted):
     #normalize tensors
     labels_normal = torch.softmax(labels_normal, dim=1) #batch classes
     labels_shifted = torch.softmax(labels_shifted, dim=1) #batch classes
-    a = labels_normal - labels_shifted
+
     return torch.sum(torch.norm(labels_normal - labels_shifted, dim=1))
 
 def test_IM(loader, model):
     device = model.device
     directions = ["u", "d", "l", "r"]
     invariance_measures = []
-
+    n = 0
+    
     for images,labels in loader:
         #images: batch channel rows cols
         images = images.squeeze().to(device)
         shifted = []
         for img in images:
-            np.random.shuffle(directions)
-            sh = shift_preserving_shape(img, direction=directions[0],
+            sh = shift_preserving_shape(img, direction=directions[np.random.randint(0,4)],
                                                   max_shift=5).unsqueeze(0)
             if sh is not None:
+                n = n + 1
                 shifted.append(sh)
         shifted = torch.cat(shifted, dim=0)
         shifted = shifted.view(-1, shifted.shape[-1] * shifted.shape[-2])
@@ -118,4 +119,4 @@ def test_IM(loader, model):
         labels = model(images)
         shifted_labels = model(shifted)
         invariance_measures.append(invariance_measure(labels, shifted_labels).unsqueeze(0))
-    return torch.sum(torch.cat(invariance_measures))
+    return torch.sum(torch.cat(invariance_measures))/n
