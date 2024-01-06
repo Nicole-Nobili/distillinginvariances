@@ -2,7 +2,7 @@
 define: &sampling 1000
 define: &classes 40
 
-outdir: 'mlp_1000p'
+outdir: 'dgcnn_1000p'
 data_hyperparams:
   pc_rootdir: "../data/ModelNet40_1000p"
   classes: *classes
@@ -10,23 +10,25 @@ data_hyperparams:
     norm: True
     sampling: *sampling
   transforms: null
+  dataloader_type: "normal"
   torch_dataloader:
     batch_size: 64
     shuffle: True
-    num_workers: 4
+    num_workers: 8
 
-model_type: "mlp_reged"
+model_type: "dgcnn"
 
 model_hyperparams:
-  input_dim: 3000
-  layers: [1024, 512, 512, 512, 512, 512, 512, 128, 64]
-  activ: "relu"
-  dropout_rate: 0.5
+  aggr: "max"
+  k: 20
   output_dim: *classes
 
 training_hyperparams:
   lr: 0.001
-  epochs: 100
-  weight_decay: 0.0001
+  lr_step_start: 100
+  lr_step_interval: 100
+  epochs: 1000
+  weight_decay: 0.0000001
+  loss: "ce"
   # clip_grad: 5
   early_stopping: 10

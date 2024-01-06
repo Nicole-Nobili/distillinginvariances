@@ -27,13 +27,12 @@ def activ_string_to_torch(activ: str):
 class MLPBasic(nn.Module):
     """Basic MLP with variable number of layers."""
 
-    def __init__(self, input_dim: int, layers: list, output_dim: int, activ: str, npts):
+    def __init__(self, input_dim: int, layers: list, output_dim: int, activ: str):
         super(MLPBasic, self).__init__()
         self.activ = activ
         self.input_dim = input_dim
         self.layers = layers
         self.output_dim = output_dim
-        self.npts = npts
 
         self._construct_mlp()
 
@@ -51,7 +50,9 @@ class MLPBasic(nn.Module):
                 self.mlp.add_module(f"activation_{nlayer}", activation)
 
 
-    def forward(self, x):
+    def forward(self, data):
+        x = data.pos
+        x = torch.flatten(x, start_dim=1)
         return self.mlp(x)
 
     def predict(self, x):
@@ -93,6 +94,7 @@ class MLPReged(nn.Module):
                 self.mlp.add_module("flatten", nn.Flatten(start_dim=1))
 
     def forward(self, x):
+        x = torch.flatten(x, start_dim=1)
         return self.mlp(x)
 
     def predict(self, x):

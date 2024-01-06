@@ -82,7 +82,7 @@ def validate(model: nn.Module, weights_file: str, valid_data: DataLoader, device
     """Run the model on the test data and save all relevant metrics to file."""
     model.load_state_dict(torch.load(weights_file))
     model.to(device)
-    nll = nn.NLLLoss().cuda()
+    nll = nn.NLLLoss().to(device)
     ece = torchmetrics.classification.MulticlassCalibrationError(num_classes=40)
 
     batch_accu_sum = 0
@@ -93,7 +93,7 @@ def validate(model: nn.Module, weights_file: str, valid_data: DataLoader, device
     for data in valid_data:
         data = data.to(device)
         y_true = data.y.flatten()
-        y_pred = model.predict(data.pos)
+        y_pred = model.predict(data)
 
         accu = torch.sum(y_pred.max(dim=1)[1] == y_true) / len(y_true)
 
@@ -129,8 +129,8 @@ def compute_fidelity(student, teacher, valid_data: DataLoader, device: str):
     student.to(device)
     for data in valid_data:
         data = data.to(device)
-        y_teacher = teacher.predict(data.pos)
-        y_student = student.predict(data.pos)
+        y_teacher = teacher.predict(data)
+        y_student = student.predict(data)
         top1_agreement = torch.sum(
                 y_student.max(dim=1)[1] == y_teacher.max(dim=1)[1]
             ) / len(y_student)
@@ -163,7 +163,7 @@ def test_perm_inv(model: nn.Module, data: DataLoader):
     permutation = torch.randperm(data.pos.size(1))
     data_permuted = data.pos[:, permutation]
 
-    y_normal = model.predict(data.pos)
+    y_normal = model.predict(data)
     y_transf = model.predict(data_permuted)
 
     inv_measure = invariance_measure(y_normal, y_transf)

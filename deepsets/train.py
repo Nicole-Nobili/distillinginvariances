@@ -47,7 +47,7 @@ def main(config):
     util.print_data_deets(valid_data, "Validation")
 
     model = util.get_model(config["model_type"], config["model_hyperparams"])
-    util.profile_model(model, train_data, outdir)
+    # util.profile_model(model, train_data, outdir)
     
     hist = train(model, train_data, valid_data, device, config["training_hyperparams"])
 
@@ -72,13 +72,18 @@ def train(
         lr=training_hyperparams["lr"],
         weight_decay=training_hyperparams["weight_decay"],
     )
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=list(range(400, epochs, 400)), gamma=0.1
+    ms = list(
+        range(
+            training_hyperparams["lr_step_start"],
+            epochs,
+            training_hyperparams["lr_step_interval"]
+        )
     )
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=ms, gamma=0.1)
     print(util.tcols.OKGREEN + "Optimizer summary: " + util.tcols.ENDC)
     print(optimizer)
 
-    loss_function = torch.nn.CrossEntropyLoss().cuda()
+    loss_function = util.choose_loss(training_hyperparams["loss"], device)
 
     print(util.tcols.OKCYAN + "\n\nTraining model..." + util.tcols.ENDC)
     all_train_loss = []
@@ -96,9 +101,11 @@ def train(
         model.train()
         for data in train_data:
             data = data.to(device)
-            y_pred = model(data.pos)
+            y_pred = model(data)
             y_true = data.y.flatten()
 
+            if training_hyperparams["loss"] == "nll":
+                y_pred = nn.functional.log_softmax(y_pred, dim=1)
             loss = loss_function(y_pred, y_true)
             optimizer.zero_grad()
             loss.backward()
@@ -120,8 +127,10 @@ def train(
         for data in valid_data:
             data = data.to(device)
             y_true = data.y.flatten()
-            y_pred = model.predict(data.pos)
+            y_pred = model.predict(data)
 
+            if training_hyperparams["loss"] == "nll":
+                y_pred = nn.functional.log_softmax(y_pred, dim=1)
             loss = loss_function(y_pred, y_true)
             accu = torch.sum(y_pred.max(dim=1)[1] == y_true) / len(y_true)
             batch_accu_sum += accu

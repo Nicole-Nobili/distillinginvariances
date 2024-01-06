@@ -142,7 +142,8 @@ class DeepSetsEquivariant(nn.Module):
 
         return aggregation
 
-    def forward(self, x):
+    def forward(self, data):
+        x = data.pos
         phi_output = self.phi(x)
         agg_output = self.agg(phi_output, dim=1)
         if isinstance(agg_output, tuple):
@@ -226,7 +227,8 @@ class DeepSetsInvariant(nn.Module):
 
         return aggregation
 
-    def forward(self, x):
+    def forward(self, data):
+        x = data.pos
         phi_output = self.phi(x)
         agg_output = self.agg(phi_output, dim=1)
         if isinstance(agg_output, tuple):

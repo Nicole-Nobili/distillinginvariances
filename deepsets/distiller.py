@@ -65,8 +65,8 @@ class Distiller(nn.Module):
                 data = data.to(self.device)
                 y_true = data.y.flatten()
 
-                teacher_predictions = self.teacher.predict(data.pos)
-                student_predictions = self.student(data.pos)
+                teacher_predictions = self.teacher.predict(data)
+                student_predictions = self.student(data)
                 student_loss = self.student_loss_fn(student_predictions, y_true)
                 distillation_loss = (
                     self.distillation_loss_fn(
@@ -102,8 +102,8 @@ class Distiller(nn.Module):
                 data = data.to(self.device)
                 y_true = data.y.flatten()
 
-                teacher_predictions = self.teacher.predict(data.pos)
-                student_predictions = self.student.predict(data.pos)
+                teacher_predictions = self.teacher.predict(data)
+                student_predictions = self.student.predict(data)
                 student_loss = self.student_loss_fn(student_predictions, y_true)
                 distillation_loss = (
                     self.distillation_loss_fn(

@@ -9,7 +9,6 @@ import yaml
 import numpy as np
 import torch
 import torch.nn as nn
-import torchvision
 import torchinfo
 import torch_geometric
 import matplotlib.pyplot as plt
@@ -20,6 +19,7 @@ from deepsets import DeepSetsEquivariant
 from deepsets import DeepSetsInvariant
 from mlp import MLPBasic
 from mlp import MLPReged
+from gcn import DGCNN
 
 
 def make_output_directories(locations: list | str, outdir: str) -> list:
@@ -76,15 +76,49 @@ def choose_mlp(choice: str, model_hyperparams: dict):
     return model
 
 
+def choose_gcn(choice: str, model_hyperparams: dict):
+    """Imports an MLP model."""
+
+    # Add handling for other model types if necessary
+    gcn = {
+        "dgcnn": lambda: DGCNN(**model_hyperparams),
+        # "knngcn": lambda: KNNGCN(**model_hyperparams),
+    }
+
+    model = gcn.get(choice, lambda: None)()
+    if model is None:
+        raise ValueError(f"{choice} is not an MLP model. Options: {gcn.keys()}.")
+
+    print(tcols.OKBLUE + "Network architecture:" + tcols.ENDC)
+    torchinfo.summary(model)
+
+    return model
+
+
 def get_model(model_type: str, model_hyperparams: dict):
     if "ds" in model_type:
         model = choose_deepsets(model_type, model_hyperparams)
     elif "mlp" in model_type:
         model = choose_mlp(model_type, model_hyperparams)
+    elif "gcn" in model_type:
+        model = choose_gcn(model_type, model_hyperparams)
     else:
         raise ValueError("Please specify in config  which kind of ML model you want.")
 
     return model
+
+
+def choose_loss(choice, device):
+    losses = {
+        "ce": lambda: nn.CrossEntropyLoss().to(device),
+        "nll": lambda: nn.NLLLoss().to(device)
+    }
+
+    loss = losses.get(choice, lambda: None)()
+    if loss is None:
+        raise ValueError(f"Loss {choice} not specified. Go to util.py and add it.")
+
+    return loss
 
 
 def import_data(device: str, config: dict, train: bool):
@@ -106,11 +140,18 @@ def import_data(device: str, config: dict, train: bool):
         config["torch_dataloader"]["shuffle"] = False
         print("validation data imported!")
 
+    if config["dataloader_type"] == "normal":
+        loader = torch_geometric.loader.DataLoader
+    elif config["dataloader_type"] == "dense":
+        loader = torch_geometric.loader.DenseDataLoader
+    else:
+        raise ValueError("DataLoader type specified in config does not exist!")
+
     dl_args = config["torch_dataloader"]
     if device == "cpu":
-        return torch_geometric.loader.DenseDataLoader(data, **dl_args)
+        return loader(data, **dl_args)
 
-    return torch_geometric.loader.DenseDataLoader(data, pin_memory=True, **dl_args)
+    return loader(data, pin_memory=True, **dl_args)
 
 
 def print_data_deets(data, data_type: str):
@@ -271,7 +312,7 @@ def accu_plot(all_train_accs: list, all_valid_accs: list, outdir: str):
     plt.text(
         np.min(epochs),
         np.max(all_train_accs),
-        f"Min: {best_valid_acc:.2e}",
+        f"Min: {best_valid_acc:.3f}",
         verticalalignment="top",
         horizontalalignment="left",
         color="blue",

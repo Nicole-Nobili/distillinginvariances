@@ -10,6 +10,7 @@ data_hyperparams:
     norm: True
     sampling: *sampling
   transforms: null
+  dataloader_type: "dense"
   torch_dataloader:
     batch_size: 64
     shuffle: True
@@ -28,7 +29,11 @@ model_hyperparams:
 
 training_hyperparams:
   lr: 0.001
+  lr_step_start: 200
+  lr_step_interval: 200
   epochs: 1000
   weight_decay: 0.0000001
   clip_grad: 5
+  loss: "ce"
   early_stopping: 30
+
