@@ -52,14 +52,22 @@ class Distiller(nn.Module):
             isnan = torch.isnan(student_loss).any().item()
             if isnan:
                print("student loss isnan")
+            #print(teacher_predictions[0])
+            input = nn.functional.softmax(teacher_predictions/self.temp, dim=1)
+            #print(input[0])
             input = nn.functional.log_softmax(teacher_predictions/self.temp, dim=1)
+            #print(input[0])
             hasnan = torch.isnan(input).any().item()
             if hasnan == True:
                print("input hasnan")
             hasnan = torch.isnan(student_predictions).any().item()
             if hasnan == True:
                print("student output hasnan")
+            #print(student_predictions[0])
+            target = nn.functional.softmax(student_predictions/self.temp, dim=1)
+            #print(target[0])
             target = nn.functional.log_softmax(student_predictions/self.temp, dim=1)
+            #print(target[0])
             hasnan = torch.isnan(target).any().item()
             if hasnan == True:
                print("target hasnan")
@@ -73,12 +81,11 @@ class Distiller(nn.Module):
             hasnan = torch.isnan(total_loss).any().item()
             if hasnan == True:
                print("loss hasnan")
-               continue
-            else:
-              self.optimiser.zero_grad()
-              total_loss.mean().backward()
-              clip_grad_norm_(self.student.parameters(), 1.0)
-              self.optimiser.step()
+
+            self.optimiser.zero_grad()
+            total_loss.mean().backward()
+            #clip_grad_norm_(self.student.parameters(), 1.0)
+            self.optimiser.step()
 
             if (i + 1) % 100 == 0:
               print(f'Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len(train_dataloader)}], Student Loss : {student_loss.item():.4f}, Total Loss: {total_loss.item():.4f}')
