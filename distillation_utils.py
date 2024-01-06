@@ -25,7 +25,7 @@ class Distiller(nn.Module):
         self.total_loss_running = []
 
         self.alpha = alpha
-        self.temp = temp
+        self.temp = 1
 
         if load_student_from_path is not None:
           state_dict = torch.load(load_student_from_path)
@@ -72,7 +72,7 @@ class Distiller(nn.Module):
             #print(total_loss)
             hasnan = torch.isnan(total_loss).any().item()
             if hasnan == True:
-               #print("loss hasnan")
+               print("loss hasnan")
                continue
             else:
               self.optimiser.zero_grad()
