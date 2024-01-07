@@ -126,3 +126,31 @@ class Distiller(nn.Module):
             
           accuracy = correct/total
           print(f'Test Accuracy: {accuracy:.4f}')
+   
+    def compute_fidelity(self, test_loader):
+       """Compute the student-teacher average top-1 agreement and the KL divergence."""
+       kldiv = nn.KLDivLoss(reduction="batchmean", log_target=True)
+       top1_agreement_running = []
+       kldiv_loss_running = []
+       teacher = self.teacher
+       student = self.student
+       for x,_ in test_loader:
+          y_teacher = teacher(x)
+          y_student = student(x)
+          top1_agreement = torch.sum(
+                y_student.max(dim=1)[1] == y_teacher.max(dim=1)[1]
+            ) / len(y_student)
+          kldiv_loss = kldiv(
+                nn.functional.log_softmax(y_teacher, dim=1),
+                nn.functional.log_softmax(y_student, dim=1)
+            )
+          top1_agreement_running.append(top1_agreement.cpu().item())
+          kldiv_loss_running.append(kldiv_loss.cpu().item())
+
+       valid_top1_agreement = np.mean(top1_agreement_running)
+       valid_kldiv_loss = np.mean(kldiv_loss_running)
+
+       return {
+         "top1_agreement": valid_top1_agreement,
+         "teach_stu_kldiv": valid_kldiv_loss
+       }
