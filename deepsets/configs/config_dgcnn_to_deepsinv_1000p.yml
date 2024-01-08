@@ -2,7 +2,7 @@
 define: &sampling 1000
 define: &classes 40
 
-outdir: 'deepsinv_mlp_1000p'
+outdir: 'dgcnn_to_dsinv_1000p'
 data_hyperparams:
   pc_rootdir: "../data/ModelNet40_1000p"
   classes: *classes
@@ -10,26 +10,30 @@ data_hyperparams:
     norm: True
     sampling: *sampling
   transforms: null
-  dataloader_type: "dense"
   torch_dataloader:
-    batch_size: 64
+    batch_size: 128
     shuffle: True
-    num_workers: 12
+    num_workers: 8
 
-teacher: "trained_deepsets/deepsinv_1000p_zaheer/"
-model_type: "basic"
+teacher: "trained_models/dgcnn_1000p/"
+teacher_seed: 42
+
+model_type: "ds_invariant"
+
 model_hyperparams:
-  input_dim: 3000
-  layers: [512, 512, 256, 256]
-  activ: "relu"
+  input_dim: 3
+  phi_layers: [256, 256, 256]
+  rho_layers: [256]
+  activ: "tanh"
+  aggreg: "max"
+  dropout: 0.5
   output_dim: *classes
 
 
 distill_hyperparams:
   lr: 0.001
-  lr_step_start: 200
-  lr_step_interval: 200
+  lr_patience: 15
   epochs: 1000
-  early_stopping: 20
+  early_stopping: 30
   alpha: 0
   temp: 4

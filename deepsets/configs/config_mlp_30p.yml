@@ -1,10 +1,10 @@
 ---
-define: &sampling 1000
+define: &sampling 30
 define: &classes 40
 
-outdir: 'mlp_1000p'
+outdir: 'mlp_30p'
 data_hyperparams:
-  pc_rootdir: "../data/ModelNet40_1000p"
+  pc_rootdir: "../data/ModelNet40_30p"
   classes: *classes
   pretransforms:
     norm: True
@@ -18,7 +18,7 @@ data_hyperparams:
 model_type: "mlp_basic"
 
 model_hyperparams:
-  input_dim: 3000
+  input_dim: 90
   layers: [1024, 512, 256, 128, 64]
   activ: "relu"
   # dropout_rate: 0.5
@@ -26,10 +26,10 @@ model_hyperparams:
 
 training_hyperparams:
   lr: 0.001
-  lr_step_start: 200
-  lr_step_interval: 200
-  epochs: 100
+  lr_step_start: 50
+  lr_step_interval: 50
+  epochs: 200
   loss: "ce"
   weight_decay: 0.000001
   # clip_grad: 5
-  early_stopping: 10
+  early_stopping: 20

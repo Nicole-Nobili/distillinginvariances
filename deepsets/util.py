@@ -13,13 +13,13 @@ import torchinfo
 import torch_geometric
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
-from deepspeed.profiling.flops_profiler import get_model_profile
 
 from deepsets import DeepSetsEquivariant
 from deepsets import DeepSetsInvariant
 from mlp import MLPBasic
 from mlp import MLPReged
-from gcn import DGCNN
+from gcn import DGCNNPaper
+from gcn import DGCNNAlt
 
 
 def make_output_directories(locations: list | str, outdir: str) -> list:
@@ -81,7 +81,8 @@ def choose_gcn(choice: str, model_hyperparams: dict):
 
     # Add handling for other model types if necessary
     gcn = {
-        "dgcnn": lambda: DGCNN(**model_hyperparams),
+        "dgcnn_paper": lambda: DGCNNPaper(**model_hyperparams),
+        "dgcnn_alt": lambda: DGCNNAlt(**model_hyperparams),
         # "knngcn": lambda: KNNGCN(**model_hyperparams),
     }
 
@@ -140,18 +141,11 @@ def import_data(device: str, config: dict, train: bool):
         config["torch_dataloader"]["shuffle"] = False
         print("validation data imported!")
 
-    if config["dataloader_type"] == "normal":
-        loader = torch_geometric.loader.DataLoader
-    elif config["dataloader_type"] == "dense":
-        loader = torch_geometric.loader.DenseDataLoader
-    else:
-        raise ValueError("DataLoader type specified in config does not exist!")
-
     dl_args = config["torch_dataloader"]
     if device == "cpu":
-        return loader(data, **dl_args)
+        return torch_geometric.loader.DataLoader(data, **dl_args)
 
-    return loader(data, pin_memory=True, **dl_args)
+    return torch_geometric.loader.DataLoader(data, pin_memory=True, **dl_args)
 
 
 def print_data_deets(data, data_type: str):
@@ -195,6 +189,10 @@ def get_torchgeometric_transforms(transforms: dict):
     if "sampling" in transforms.keys():
         tg_transforms.append(
             torch_geometric.transforms.SamplePoints(transforms["sampling"])
+        )
+    elif "jitter" in transforms.keys():
+        tg_transforms.append(
+            torch_geometric.transforms.RandomJitter(transforms["jitter"])
         )
 
     return torch_geometric.transforms.Compose(tg_transforms)
@@ -323,31 +321,6 @@ def accu_plot(all_train_accs: list, all_valid_accs: list, outdir: str):
     plt.savefig(os.path.join(outdir, "accu_epochs.pdf"))
     plt.close()
     print(tcols.OKGREEN + f"Accuracy vs epochs plot saved to {outdir}." + tcols.ENDC)
-
-
-
-def profile_model(model: nn.Module, data: DataLoader, outdir: str = None):
-    """Profile the model and get the number of FLOPs it does during a forward pass."""
-    batch = next(iter(data))
-    outfile = None
-    if outdir:
-        outfile = os.path.join(outdir, "profile.out")
-    flops, macs, params = get_model_profile(
-        model=model,
-        input_shape=tuple(batch.pos.size()),
-        args=None,
-        kwargs=None,
-        print_profile=True,
-        detailed=True,
-        module_depth=-1,
-        top_modules=2,
-        warm_up=10,
-        as_string=True,
-        output_file=outfile,
-        ignore_modules=None,
-    )
-    print(tcols.OKGREEN + "Total flops: " + tcols.ENDC, flops)
-    print("-----------------")
 
 
 class tcols:

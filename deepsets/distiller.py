@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+import deepspeed
 
 import util
 
@@ -16,6 +17,7 @@ class Distiller(nn.Module):
         teacher: nn.Module,
         device: str,
         lr: float = 0.001,
+        lr_patience: int = 50,
         epochs: int = 100,
         early_stopping: int = 20,
         temp: float = 3.5,
@@ -26,6 +28,14 @@ class Distiller(nn.Module):
         self.teacher = teacher
 
         self.optimiser = torch.optim.Adam(self.student.parameters(), lr=lr)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            self.optimiser,
+            mode='max',
+            patience=lr_patience,
+            factor=0.1,
+            threshold=1e-3,
+            verbose=True
+        )
 
         self.student_loss_fn = nn.CrossEntropyLoss()
         self.distillation_loss_fn = nn.KLDivLoss(reduction="batchmean", log_target=True)
@@ -127,11 +137,15 @@ class Distiller(nn.Module):
             self.all_distill_loss_valid.append(np.mean(distill_loss_running))
             self.all_student_accu_valid.append(np.mean(student_accu_running))
 
+            self.scheduler.step(best_accu)
             if self.all_student_accu_valid[-1] <= best_accu:
                 epochs_no_improve += 1
             else:
                 best_accu = self.all_student_accu_valid[-1]
                 epochs_no_improve = 0
+
+            if epochs_no_improve == self.early_stopping:
+                break
 
             self.print_metrics(epoch)
 

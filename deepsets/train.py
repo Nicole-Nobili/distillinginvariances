@@ -24,22 +24,22 @@ import torch
 torch.manual_seed(args.seed)
 
 import yaml
+import deepspeed
 import torch.nn as nn
 import torch_geometric
 from torch.utils.data import DataLoader
 
 import util
 
-import optuna
 
 
 def main(config):
     device = args.device
-    outdir = util.make_output_directory("trained_deepsets", config["outdir"])
+    outdir = util.make_output_directory("trained_models", config["outdir"])
     util.save_config_file(config, outdir)
 
     config["outdir"] = os.path.join(config["outdir"], f"seed{args.seed}")
-    outdir = util.make_output_directory("trained_deepsets", config["outdir"])
+    outdir = util.make_output_directory("trained_models", config["outdir"])
 
     train_data = util.import_data(device, config["data_hyperparams"], train=True)
     util.print_data_deets(train_data, "Training")
@@ -47,8 +47,6 @@ def main(config):
     util.print_data_deets(valid_data, "Validation")
 
     model = util.get_model(config["model_type"], config["model_hyperparams"])
-    # util.profile_model(model, train_data, outdir)
-    
     hist = train(model, train_data, valid_data, device, config["training_hyperparams"])
 
     model_file = os.path.join(outdir, "model.pt")
@@ -72,14 +70,14 @@ def train(
         lr=training_hyperparams["lr"],
         weight_decay=training_hyperparams["weight_decay"],
     )
-    ms = list(
-        range(
-            training_hyperparams["lr_step_start"],
-            epochs,
-            training_hyperparams["lr_step_interval"]
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='max',
+            patience=training_hyperparams["lr_patience"],
+            factor=0.1,
+            threshold=1e-3,
+            verbose=True
         )
-    )
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=ms, gamma=0.1)
     print(util.tcols.OKGREEN + "Optimizer summary: " + util.tcols.ENDC)
     print(optimizer)
 
@@ -94,13 +92,21 @@ def train(
     epochs_es_limit = training_hyperparams["early_stopping"]
     best_accu = 0
 
+    prof = deepspeed.profiling.flops_profiler.FlopsProfiler(model)
+    profile_epoch = 0
     for epoch in range(epochs):
+        if epoch == profile_epoch:
+            prof.start_profile()
+
         batch_loss_sum = 0
         batch_accu_sum = 0
         totnum_batches = 0
         model.train()
         for data in train_data:
             data = data.to(device)
+
+            if training_hyperparams["translate"]:
+                data = translate_data(data)
             y_pred = model(data)
             y_true = data.y.flatten()
 
@@ -117,9 +123,16 @@ def train(
             totnum_batches += 1
             batch_accu_sum += torch.sum(y_pred.max(dim=1)[1] == y_true) / len(y_true)
 
+            if epoch == profile_epoch and totnum_batches == 1:
+                prof.stop_profile()
+                print(util.tcols.OKGREEN + "Model flops: " + util.tcols.ENDC, end="")
+                print(f"{prof.get_total_flops(as_string=True)}")
+
+                prof.end_profile()
+                print("")
+
         train_loss = batch_loss_sum / totnum_batches
         train_accu = batch_accu_sum / totnum_batches
-        scheduler.step()
 
         batch_loss_sum = 0
         batch_accu_sum = 0
@@ -140,13 +153,14 @@ def train(
         valid_loss = batch_loss_sum / totnum_batches
         valid_accu = batch_accu_sum / totnum_batches
 
-        if valid_accu <= best_accu:
+        if round(valid_accu.cpu().item(), 4) <= round(best_accu, 4):
             epochs_no_improve += 1
         else:
-            best_accu = valid_accu
+            best_accu = valid_accu.cpu().item()
             epochs_no_improve = 0
 
-        if early_stopping(epochs_no_improve, epochs_es_limit):
+        scheduler.step(best_accu)
+        if epochs_no_improve >= epochs_es_limit:
             break
 
         all_train_loss.append(train_loss.item())
@@ -164,6 +178,15 @@ def train(
     }
 
 
+def translate_data(data: DataLoader):
+    """Applies a random translation to each data point."""
+    translation = torch.rand(data.batch_size, data.pos.size(-1)).to(data.pos.device)*0.1
+    translation = translation.repeat_interleave(int(data.size(0)/data.batch_size), dim=0)
+    data.pos = torch.add(data.pos, translation)
+
+    return data
+
+
 def print_metrics(epoch, epochs, train_loss, train_accu, valid_loss, valid_accu):
     """Prints the training and validation metrics in a nice format."""
     print(
@@ -175,13 +198,6 @@ def print_metrics(epoch, epochs, train_loss, train_accu, valid_loss, valid_accu)
         f"Valid loss = {valid_loss.item():.8f}\n"
         f"Valid accuracy = {valid_accu:.8f}\n"
     )
-
-
-def early_stopping(epochs_no_improve: int, epochs_limit: int) -> bool:
-    """Stops the training if there has been no improvement in the loss."""
-    if epochs_no_improve >= epochs_limit:
-        return 1
-    return 0
 
 
 def clip_grad(model, max_norm):

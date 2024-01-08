@@ -1,8 +1,8 @@
 # Validation script for the deepsets network, computing all the metrics of interest.
 
 import os
-import time
 import argparse
+import copy
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--models_dir", type=str)
@@ -34,13 +34,13 @@ import util
 def main(args: dict):
     device = args.device
     model_dirs = [x[0] for x in os.walk(args.models_dir)][1:]
+
     config = util.load_config_file(os.path.join(args.models_dir, "config.yml"))
     valid_data = util.import_data(device, config["data_hyperparams"], train=False)
     util.print_data_deets(valid_data, "Validation")
 
     model = util.get_model(config["model_type"], config["model_hyperparams"])
-    util.profile_model(model, valid_data, args.models_dir)
-    all_metrics = {"accu": [], "nlll": [], "ecel": [], "invl": []}
+    all_metrics = {"accu": [], "nlll": [], "ecel": [], "perm": [], "jitt": []}
 
     if "teacher" in config.keys():
         all_metrics.update({"top1_agreement": [], "teach_stu_kldiv": []})
@@ -51,7 +51,6 @@ def main(args: dict):
         teacher_model = util.get_model(config_teacher)
         weights_file = os.path.join(config["teacher"], "seed42", "model.pt")
         teacher_model.load_state_dict(torch.load(weights_file))
-        util.profile_model(teacher_model, train_data, outdir)
 
     for model_dir in model_dirs:
         print(util.tcols.HEADER + f"Model at: {model_dir}" + util.tcols.ENDC)
@@ -71,14 +70,16 @@ def main(args: dict):
             print(f"{metric}: {metric_mean:.3e} ± {metric_std:.3e}")
             metrics_file.write(f"{metric_mean:.3e} ± {metric_std:.3e}")
 
-
-
     print(util.tcols.OKCYAN + "Wrote average metrics to file in: " + util.tcols.ENDC)
     print(f"{metrics_file_path}")
 
 
-
-def validate(model: nn.Module, weights_file: str, valid_data: DataLoader, device: str):
+def validate(
+    model: nn.Module,
+    weights_file: str,
+    valid_data: DataLoader,
+    device: str
+):
     """Run the model on the test data and save all relevant metrics to file."""
     model.load_state_dict(torch.load(weights_file))
     model.to(device)
@@ -88,7 +89,8 @@ def validate(model: nn.Module, weights_file: str, valid_data: DataLoader, device
     batch_accu_sum = 0
     batch_nlll_sum = 0
     batch_ecel_sum = 0
-    batch_invl_sum = 0
+    batch_perm_invl_sum = 0
+    batch_jitt_invl_sum = 0
     totnum_batches = 0
     for data in valid_data:
         data = data.to(device)
@@ -100,19 +102,23 @@ def validate(model: nn.Module, weights_file: str, valid_data: DataLoader, device
         log_probs = nn.LogSoftmax(dim=1)(y_pred)
         nll_loss = nll(log_probs, y_true)
         ece_loss = ece(y_pred, y_true)
-        inv_loss = test_perm_inv(model, data)
+
+        perm_inv_loss = test_perm_inv(model, data)
+        jitt_inv_loss = test_jitt_inv(model, data)
 
         batch_accu_sum += accu
         batch_nlll_sum += nll_loss
         batch_ecel_sum += ece_loss
-        batch_invl_sum += inv_loss
+        batch_perm_invl_sum += perm_inv_loss
+        batch_jitt_invl_sum += jitt_inv_loss
         totnum_batches += 1
 
     metrics = {
         "accu": (batch_accu_sum / totnum_batches).cpu().item(),
         "nlll": (batch_nlll_sum / totnum_batches).cpu().item(),
         "ecel": (batch_ecel_sum / totnum_batches).cpu().item(),
-        "invl": (batch_invl_sum / totnum_batches).cpu().item(),
+        "perm": (batch_perm_invl_sum / totnum_batches).cpu().item(),
+        "jitt": (batch_jitt_invl_sum / totnum_batches).cpu().item(),
     }
     print_metrics(metrics)
 
@@ -160,11 +166,38 @@ def invariance_measure(y_normal: torch.Tensor, y_transf: torch.Tensor):
 
 def test_perm_inv(model: nn.Module, data: DataLoader):
     """Computes how invariant a model is with respect to a permutation of the data."""
-    permutation = torch.randperm(data.pos.size(1))
-    data_permuted = data.pos[:, permutation]
-
     y_normal = model.predict(data)
-    y_transf = model.predict(data_permuted)
+
+    data.pos = data.pos.view(data.batch_size, -1, data.pos.size(1))
+    permutation = torch.randperm(data.pos.size(1))
+    data.pos = data.pos[:, permutation]
+    data.pos = data.pos.flatten(end_dim=1)
+    data.batch = data.batch.view(data.batch_size, -1)
+    data.batch = data.batch[:, permutation]
+    data.batch = data.batch.flatten()
+
+    y_transf = model.predict(data)
+    permutation_reversal = torch.sort(permutation).indices
+    data.pos = data.pos.view(data.batch_size, -1, data.pos.size(1))
+    data.pos = data.pos[:, permutation_reversal]
+    data.pos = data.pos.flatten(end_dim=1)
+    data.batch = data.batch.view(data.batch_size, -1)
+    data.batch = data.batch[:, permutation_reversal]
+    data.batch = data.batch.flatten()
+
+    inv_measure = invariance_measure(y_normal, y_transf)
+    return inv_measure
+
+
+def test_jitt_inv(model: nn.Module, data: DataLoader):
+    """Computes how invariant a model is with respect to a permutation of the data."""
+    y_normal = model.predict(data)
+
+    translation = torch.rand(data.batch_size, data.pos.size(-1)).to(data.pos.device)*0.1
+    translation = translation.repeat_interleave(int(data.size(0)/data.batch_size), dim=0)
+    data.pos = torch.add(data.pos, translation)
+    y_transf = model.predict(data)
+    data.pos = torch.subtract(data.pos, translation)
 
     inv_measure = invariance_measure(y_normal, y_transf)
     return inv_measure

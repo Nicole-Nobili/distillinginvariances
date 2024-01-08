@@ -1,20 +1,20 @@
 ---
-define: &sampling 100
+# Configuration to reproduce the results from https://arxiv.org/abs/1703.06114 app H.
+define: &sampling 1000
 define: &classes 40
 
-outdir: 'deepsequiv_100p_zaheer'
+outdir: 'deepsequiv_1000p_zaheer'
 data_hyperparams:
-  pc_rootdir: "../data/ModelNet40_100p"
+  pc_rootdir: "../data/ModelNet40_1000p"
   classes: *classes
   pretransforms:
     norm: True
     sampling: *sampling
   transforms: null
-  dataloader_type: "dense"
   torch_dataloader:
     batch_size: 64
     shuffle: True
-    num_workers: 0
+    num_workers: 4
 
 model_type: "ds_equivariant"
 
@@ -29,10 +29,10 @@ model_hyperparams:
 
 training_hyperparams:
   lr: 0.001
-  lr_step_start: 200
-  lr_step_interval: 200
+  lr_patience: 15
   epochs: 1000
   weight_decay: 0.0000001
   loss: "ce"
   clip_grad: 5
   early_stopping: 30
+

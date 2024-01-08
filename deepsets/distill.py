@@ -50,13 +50,13 @@ def main(config: dict):
     teacher_model = util.get_model(
         config_teacher["model_type"], config_teacher["model_hyperparams"]
     )
-    weights_file = os.path.join(config["teacher"], "seed42", "model.pt")
+    weights_file = os.path.join(
+        config["teacher"], f"seed{config['teacher_seed']}", "model.pt"
+    )
     teacher_model.load_state_dict(torch.load(weights_file))
-    util.profile_model(teacher_model, train_data, outdir)
 
     print(util.tcols.OKGREEN + "Student network" + util.tcols.ENDC)
     student_model = util.get_model(config["model_type"], config["model_hyperparams"])
-    util.profile_model(student_model, train_data, outdir)
 
     distill_hyperparams = config["distill_hyperparams"]
     distill = Distiller(student_model, teacher_model, device, **distill_hyperparams)
