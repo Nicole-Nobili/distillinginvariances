@@ -1,4 +1,5 @@
 import torch.nn as nn
+import antialiased_cnns
 
 
 class SimpleCNN(nn.Module):
@@ -61,4 +62,29 @@ class LeNet(nn.Module):
         x = self.classifier(x)
         # Apply temperature scaling in the last layer
         x = x / self.temperature
+        return x
+    
+class LeNetSI(nn.Module):
+    def __init__(self):
+        super(LeNetSI, self).__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(1, 6, kernel_size=5),
+            nn.ReLU(), antialiased_cnns.BlurPool(6, stride=1),
+            nn.MaxPool2d(kernel_size=2, stride=1), antialiased_cnns.BlurPool(6, stride=2), 
+            nn.Conv2d(6, 16, kernel_size=5),
+            nn.ReLU(), antialiased_cnns.BlurPool(16, stride=1),
+            nn.MaxPool2d(kernel_size=2, stride=1), antialiased_cnns.BlurPool(16, stride=2)
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(16 * 4 * 4, 120),
+            nn.ReLU(),
+            nn.Linear(120, 84),
+            nn.ReLU(),
+            nn.Linear(84, 10),
+        )
+
+    def forward(self, x):
+        x = self.features(x)
+        x = x.view(x.size(0), -1)
+        x = self.classifier(x)
         return x
