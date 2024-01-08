@@ -50,7 +50,7 @@ class MLP(nn.Module):
         assert type(s) == torch.Tensor
         return self.layers(s)
 
-    def train(
+    def training_loop(
         self,
         optimizer,
         criterion,
@@ -73,12 +73,11 @@ class MLP(nn.Module):
                         f"Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}"
                     )
         # Save the trained model
-        if save_path_folder is not None:
-            save_path = save_path_folder + '\mlp'
-            torch.save(self.state_dict(), save_path)
-            print(f"Model saved as {save_path}!")
+        save_path = save_path_folder + "\mlp"
+        torch.save(self.state_dict(), save_path)
+        print(f"Model saved as {save_path}!")
 
-    def eval(self, test_loader):
+    def eval_loop(self, test_loader):
         with torch.no_grad():
             correct = 0
             total = 0

@@ -1,131 +1,191 @@
-import torch.nn as nn
-from torch.nn.functional import softmax
-import torch
 import numpy as np
-from torch.nn.utils import clip_grad_norm_
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
 
 class Distiller(nn.Module):
 
-    def __init__(self, student: nn.Module, teacher: nn.Module, device: str, load_student_from_path = None, lr = 0.001, temp: float = 3.5, alpha: float = 0):
-        #Note that a temperature of 4 is said to work well when the teacher is fairly confident of its predictions
+    def __init__(
+        self,
+        student: nn.Module,
+        teacher: nn.Module,
+        device: str,
+        lr: float = 0.001,
+        epochs: int = 10,
+        early_stopping: int = 5,
+        temp: float = 3.5,
+        alpha: float = 0,
+    ):
         super(Distiller, self).__init__()
-        print("hfafu")
         self.student = student
         self.teacher = teacher
 
         self.optimiser = torch.optim.Adam(self.student.parameters(), lr=lr)
 
-        self.student_loss_fn = torch.nn.CrossEntropyLoss()
+        self.student_loss_fn = nn.CrossEntropyLoss()
         self.distillation_loss_fn = nn.KLDivLoss(reduction="batchmean", log_target=True)
         self.device = device
 
-        self.categorical_accuracy = []
-        self.student_loss_running = []
-        self.distill_loss_running = []
-        self.total_loss_running = []
+        self.all_student_loss_train = []
+        self.all_distill_loss_train = []
+        self.all_total_loss_train = []
+        self.all_student_accu_train = []
+
+        self.all_student_loss_valid = []
+        self.all_distill_loss_valid = []
+        self.all_total_loss_valid = []
+        self.all_student_accu_valid = []
 
         self.alpha = alpha
-        self.temp = 1
+        self.temp = temp
+        self.epochs = epochs
+        self.early_stopping = early_stopping
 
-        if load_student_from_path is not None:
-          state_dict = torch.load(load_student_from_path)
-          self.student.load_state_dict(state_dict)
+    def distill(self, train_data: DataLoader, valid_data: DataLoader):
+        """Distill a teacher into a student model."""
+        best_accu = 0
+        epochs_no_improve = 0
+        self.student.to(self.device)
+        self.teacher.to(self.device)
 
-    def distill(self, train_dataloader, epochs, save_path_folder: None):
-        self.student_loss_running = []
-        self.distill_loss_running = []
-        self.total_loss_running = []
-        for epoch in range(epochs):
-          """Train the student network through one feed forward."""
+        print("\nDistilling...")
+        for epoch in range(self.epochs):
+            self.student.train() #may break stuff
 
-          for i, (x, y)  in enumerate(train_dataloader):
-            x = x.to(self.device)
-            y = y.to(self.device)
-            with torch.no_grad(): #only needed for compute time reasons
-              try:
-                teacher_predictions = self.teacher(x)
-              except RuntimeError:
-                  teacher_predictions = self.teacher(x.view(-1, 784))
+            student_loss_running = []
+            distill_loss_running = []
+            total_loss_running = []
+            student_accu_running = []
+            for i, (x,y) in enumerate(train_data):
+                x = x.to(self.device)
+                y = y.to(self.device)
 
-            student_predictions = self.student(x.view(-1, 784))
-            student_loss = self.student_loss_fn(student_predictions, y)
-            isnan = torch.isnan(student_loss).any().item()
-            if isnan:
-               print("student loss isnan")
-            #print(teacher_predictions[0])
-            input = nn.functional.softmax(teacher_predictions/self.temp, dim=1)
-            #print(input[0])
-            input = nn.functional.log_softmax(teacher_predictions/self.temp, dim=1)
-            #print(input[0])
-            hasnan = torch.isnan(input).any().item()
-            if hasnan == True:
-               print("input hasnan")
-            hasnan = torch.isnan(student_predictions).any().item()
-            if hasnan == True:
-               print("student output hasnan")
-            #print(student_predictions[0])
-            target = nn.functional.softmax(student_predictions/self.temp, dim=1)
-            #print(target[0])
-            target = nn.functional.log_softmax(student_predictions/self.temp, dim=1)
-            #print(target[0])
-            hasnan = torch.isnan(target).any().item()
-            if hasnan == True:
-               print("target hasnan")
-            distillation_loss = self.distillation_loss_fn(
-                        input = input,
-                        target = target,
-                    )* self.temp**2
-            total_loss = distillation_loss
-            #total_loss = self.alpha * student_loss + (1 - self.alpha) * distillation_loss
-            #print(total_loss)
-            hasnan = torch.isnan(total_loss).any().item()
-            if hasnan == True:
-               print("loss hasnan")
+                with torch.no_grad():
+                    self.teacher.eval()
+                    try:
+                        teacher_predictions = self.teacher(x)
+                    except RuntimeError:
+                        teacher_predictions = self.teacher(x.view(-1,784))
 
-            self.optimiser.zero_grad()
-            total_loss.mean().backward()
-            #clip_grad_norm_(self.student.parameters(), 1.0)
-            self.optimiser.step()
+                student_predictions = self.student(x.view(-1,784))
+                student_loss = self.student_loss_fn(student_predictions, y)
+                distillation_loss = (
+                    self.distillation_loss_fn(
+                        nn.functional.log_softmax(teacher_predictions/self.temp, dim=1),
+                        nn.functional.log_softmax(student_predictions/self.temp, dim=1),
+                    )
+                    * self.temp**2
+                )
+                total_loss = (
+                    self.alpha * student_loss + (1 - self.alpha) * distillation_loss
+                )
 
-            if (i + 1) % 100 == 0:
-              print(f'Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len(train_dataloader)}], Student Loss : {student_loss.item():.4f}, Total Loss: {total_loss.item():.4f}')
+                self.optimiser.zero_grad()
+                total_loss.mean().backward()
+                self.optimiser.step()
+                student_accu = torch.sum(
+                    student_predictions.max(dim=1)[1] == y
+                ) / len(y)
 
-              self.student_loss_running.append(student_loss.item())
-              self.distill_loss_running.append(distillation_loss.item())
-              self.total_loss_running.append(total_loss.item())
+                student_loss_running.append(student_loss.cpu().item())
+                distill_loss_running.append(distillation_loss.cpu().item())
+                student_accu_running.append(student_accu.cpu().item())
 
-        student_loss = np.mean(self.student_loss_running)
-        distill_loss = np.mean(self.distill_loss_running)
-        total_loss = np.mean(self.total_loss_running)
+            self.all_student_loss_train.append(np.mean(student_loss_running))
+            self.all_distill_loss_train.append(np.mean(distill_loss_running))
+            self.all_student_accu_train.append(np.mean(student_accu_running))
 
-        print(f"Student loss: {student_loss}")
-        print(f"Distillation loss: {distill_loss}")
-        print(f"Total loss: {total_loss}")
+            student_loss_running = []
+            distill_loss_running = []
+            total_loss_running = []
+            student_accu_running = []
+            for i, (x,y) in enumerate(valid_data):
+                x = x.to(self.device)
+                y = y.to(self.device)
+                with torch.no_grad():
+                    self.student.eval()
+                    self.teacher.eval()
+                    try:
+                        teacher_predictions = self.teacher(x)
+                    except RuntimeError:
+                        teacher_predictions = self.teacher(x.view(-1,784))
+                    student_predictions = self.student(x.view(-1,784))
 
-        if save_path_folder is not None:
-          save_path = save_path_folder + 'distiller'
-          torch.save(self.student.state_dict(), save_path)
-          print('saved model')
-      
+                student_loss = self.student_loss_fn(student_predictions, y)
+                distillation_loss = (
+                    self.distillation_loss_fn(
+                        nn.functional.log_softmax(teacher_predictions/self.temp, dim=1),
+                        nn.functional.log_softmax(student_predictions/self.temp, dim=1),
+                    )
+                    * self.temp**2
+                )
+                total_loss = (
+                    self.alpha * student_loss + (1 - self.alpha) * distillation_loss
+                )
+                student_accu = torch.sum(
+                    student_predictions.max(dim=1)[1] == y
+                ) / len(y)
+
+                student_loss_running.append(student_loss.cpu().item())
+                distill_loss_running.append(distillation_loss.cpu().item())
+                student_accu_running.append(student_accu.cpu().item())
+
+            self.all_student_loss_valid.append(np.mean(student_loss_running))
+            self.all_distill_loss_valid.append(np.mean(distill_loss_running))
+            self.all_student_accu_valid.append(np.mean(student_accu_running))
+
+            if self.all_student_accu_valid[-1] <= best_accu:
+                epochs_no_improve += 1
+            else:
+                best_accu = self.all_student_accu_valid[-1]
+                epochs_no_improve = 0
+
+            self.print_metrics(epoch)
+
+        return {
+            "student_train_losses": self.all_student_loss_train,
+            "student_train_accurs": self.all_student_accu_train,
+            "distill_train_losses": self.all_distill_loss_train,
+            "student_valid_losses": self.all_student_loss_valid,
+            "student_valid_accurs": self.all_student_accu_valid,
+            "distill_valid_losses": self.all_distill_loss_valid
+        }
+
     def get_student(self):
-       return self.student
-
-    def test_step(self, test_loader):
-        """Test the student network."""
-        with torch.no_grad():
-          correct = 0
-          total = 0
-
-          for x,y in test_loader:
+        return self.student
+    
+    def eval_student(self, valid_data):
+        accu = []
+        loss = []
+        for i, (x,y) in enumerate(valid_data):
             x = x.to(self.device)
             y = y.to(self.device)
-            y_prediction = self.student(x.view(-1,784))
-            _, predicted = torch.max(y_prediction.data,1)
-            total += y.size(0)
-            correct += (predicted == y).sum().item()
-            
-          accuracy = correct/total
-          print(f'Test Accuracy: {accuracy:.4f}')
+            with torch.no_grad():
+                self.student.eval()
+                student_predictions = self.student(x.view(-1,784))
+            student_loss = self.student_loss_fn(student_predictions, y)
+            student_accu = torch.sum(
+                student_predictions.max(dim=1)[1] == y
+            ) / len(y)
+            loss.append(student_loss.item())
+            accu.append(student_accu.item())
+
+        print(f"Loss : {torch.mean(student_loss)}\n"
+            + f"Accuracy: {torch.mean(student_accu)}\n")
+
+
+    def print_metrics(self, epoch: int):
+        """Prints the training and validation metrics in a nice format."""
+        print(
+            f"Epoch : {epoch + 1}/{self.epochs}\n"
+            + f"Student train loss = {self.all_student_loss_train[epoch]:.8f}\n"
+            + f"Distill train loss = {self.all_distill_loss_train[epoch]:.8f}\n"
+            + f"Student train accu = {self.all_student_accu_train[epoch]:.8f}\n\n"
+            + f"Student valid loss = {self.all_student_loss_valid[epoch]:.8f}\n"
+            + f"Distill valid loss = {self.all_distill_loss_valid[epoch]:.8f}\n"
+            + f"Student valid accu = {self.all_student_accu_valid[epoch]:.8f}\n"
+            + "---"
+        )
    
     def compute_fidelity(self, test_loader):
        """Compute the student-teacher average top-1 agreement and the KL divergence."""
