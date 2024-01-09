@@ -1,3 +1,4 @@
+# code from https://github.com/achaman2/truly_shift_invariant_cnns/tree/main
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
