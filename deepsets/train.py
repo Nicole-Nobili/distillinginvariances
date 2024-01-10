@@ -216,9 +216,6 @@ def clip_grad(model, max_norm):
 
 if __name__ == "__main__":
     with open(args.config_file, "r") as stream:
-        try:
-            config = yaml.safe_load(stream)
-        except yaml.YAMLError as exc:
-            print(exc)
+        config = yaml.load(stream, Loader=yaml.Loader)
             
     main(config)

@@ -70,6 +70,8 @@ def main(config: dict):
         outdir,
         "distillation"
     )
+    model_file = os.path.join(outdir, "model.pt")
+    torch.save(distill.get_student().state_dict(), model_file)
 
 
 if __name__ == "__main__":

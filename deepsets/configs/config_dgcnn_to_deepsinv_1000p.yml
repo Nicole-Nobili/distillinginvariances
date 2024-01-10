@@ -1,10 +1,11 @@
 ---
 define: &sampling 1000
 define: &classes 40
+define: &temp 4
 
-outdir: 'dgcnn_to_dsinv_1000p'
+outdir: 'dgcnn_to_deepsinv_T4_1000p'
 data_hyperparams:
-  pc_rootdir: "../data/ModelNet40_1000p"
+  pc_rootdir: '../data/ModelNet40_1000p'
   classes: *classes
   pretransforms:
     norm: True
@@ -15,7 +16,7 @@ data_hyperparams:
     shuffle: True
     num_workers: 8
 
-teacher: "trained_models/dgcnn_1000p/"
+teacher: "trained_models/dgcnn_1000p_wang_tinv/"
 teacher_seed: 42
 
 model_type: "ds_invariant"
@@ -32,8 +33,8 @@ model_hyperparams:
 
 distill_hyperparams:
   lr: 0.001
-  lr_patience: 15
+  lr_patience: 10
   epochs: 1000
-  early_stopping: 30
+  early_stopping: 15
   alpha: 0
-  temp: 4
+  temp: *temp

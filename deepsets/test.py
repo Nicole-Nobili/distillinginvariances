@@ -48,8 +48,17 @@ def main(args: dict):
             os.path.join(config["teacher"], "config.yml")
         )
         print(util.tcols.OKGREEN + "Teacher network" + util.tcols.ENDC)
-        teacher_model = util.get_model(config_teacher)
-        weights_file = os.path.join(config["teacher"], "seed42", "model.pt")
+        teacher_model = copy.deepcopy(model)
+        if not config["model_type"] == config_teacher["model_type"]:
+            if not config["model_hyperparams"] == config_teacher["model_hyperparams"]:
+                teacher_model = util.get_model(
+                    config_teacher["model_type"], config_teacher["model_hyperparams"]
+                )
+
+
+        weights_file = os.path.join(
+            config["teacher"], "seed" + str(config["teacher_seed"]), "model.pt"
+        )
         teacher_model.load_state_dict(torch.load(weights_file))
 
     for model_dir in model_dirs:
@@ -138,12 +147,12 @@ def compute_fidelity(student, teacher, valid_data: DataLoader, device: str):
         y_teacher = teacher.predict(data)
         y_student = student.predict(data)
         top1_agreement = torch.sum(
-                y_student.max(dim=1)[1] == y_teacher.max(dim=1)[1]
-            ) / len(y_student)
+            y_student.max(dim=1)[1] == y_teacher.max(dim=1)[1]
+        ) / len(y_student)
         kldiv_loss = kldiv(
-                nn.functional.log_softmax(y_teacher, dim=1),
-                nn.functional.log_softmax(y_student, dim=1)
-            )
+            nn.functional.log_softmax(y_teacher, dim=1),
+            nn.functional.log_softmax(y_student, dim=1)
+        )
         top1_agreement_running.append(top1_agreement.cpu().item())
         kldiv_loss_running.append(kldiv_loss.cpu().item())
 

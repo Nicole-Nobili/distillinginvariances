@@ -29,7 +29,7 @@ class DGCNNPaper(nn.Module):
 
         self.conv1 = torch_geometric.nn.DynamicEdgeConv(
             torch_geometric.nn.MLP(
-                [2 * self.input_dim] + [64],
+                [self.input_dim] + [64],
                 act=self.activ,
                 act_kwargs={"negative_slope": 0.2},
                 norm="batch_norm"
@@ -39,7 +39,7 @@ class DGCNNPaper(nn.Module):
         )
         self.conv2 = torch_geometric.nn.DynamicEdgeConv(
             torch_geometric.nn.MLP(
-                [2 * 64] + [64],
+                [64] + [64],
                 act=self.activ,
                 act_kwargs={"negative_slope": 0.2},
                 norm="batch_norm"
@@ -49,7 +49,7 @@ class DGCNNPaper(nn.Module):
         )
         self.conv3 = torch_geometric.nn.DynamicEdgeConv(
             torch_geometric.nn.MLP(
-                [2 * 64] + [128],
+                [64] + [128],
                 act=self.activ,
                 act_kwargs={"negative_slope": 0.2},
                 norm="batch_norm"
@@ -59,7 +59,7 @@ class DGCNNPaper(nn.Module):
         )
         self.conv4 = torch_geometric.nn.DynamicEdgeConv(
             torch_geometric.nn.MLP(
-                [2 * 128] + [256],
+                [128] + [256],
                 act=self.activ,
                 act_kwargs={"negative_slope": 0.2},
                 norm="batch_norm"
@@ -122,12 +122,12 @@ class DGCNNAlt(nn.Module):
         self.activ = activ
 
         self.conv1 = torch_geometric.nn.DynamicEdgeConv(
-            torch_geometric.nn.MLP([2 * self.input_dim] + [64, 64, 64], act=self.activ),
+            torch_geometric.nn.MLP([self.input_dim] + [64, 64, 64], act=self.activ),
             self.k,
             self.aggr
         )
         self.conv2 = torch_geometric.nn.DynamicEdgeConv(
-            torch_geometric.nn.MLP([2 * 64] + [128], act=self.activ),
+            torch_geometric.nn.MLP([64] + [128], act=self.activ),
             self.k,
             self.aggr
         )

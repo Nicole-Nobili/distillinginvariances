@@ -6,7 +6,7 @@ storage: 'mlp'
 study_name: 'modelnet_1000p'
 
 data_hyperparams:
-  pc_rootdir: "../data/ModelNet40_1000p"
+  pc_rootdir: '../data/ModelNet40_1000p'
   classes: *classes
   pretransforms:
     norm: True

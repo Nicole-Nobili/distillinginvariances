@@ -2,9 +2,9 @@
 define: &sampling 1000
 define: &classes 40
 
-outdir: 'dgcnn_1000p_wang'
+outdir: 'dgcnn_1000p_alt_tinv'
 data_hyperparams:
-  pc_rootdir: "../data/ModelNet40_1000p"
+  pc_rootdir: '../data/ModelNet40_1000p'
   classes: *classes
   pretransforms:
     norm: True

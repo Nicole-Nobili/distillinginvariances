@@ -4,7 +4,7 @@ define: &classes 40
 
 outdir: 'mlp_30p'
 data_hyperparams:
-  pc_rootdir: "../data/ModelNet40_30p"
+  pc_rootdir: '../data/ModelNet40_30p'
   classes: *classes
   pretransforms:
     norm: True

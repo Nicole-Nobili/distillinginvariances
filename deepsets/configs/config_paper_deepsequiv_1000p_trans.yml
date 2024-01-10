@@ -5,7 +5,7 @@ define: &classes 40
 
 outdir: 'deepsequiv_1000p_zaheer_trans'
 data_hyperparams:
-  pc_rootdir: "../data/ModelNet40_1000p"
+  pc_rootdir: '../data/ModelNet40_1000p'
   classes: *classes
   pretransforms:
     norm: True
