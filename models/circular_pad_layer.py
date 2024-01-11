@@ -12,4 +12,3 @@ class circular_pad(nn.Module):
     def forward(self, x):
             
         return F.pad(x, pad = self.pad_sizes , mode = 'circular')
-    

@@ -2,8 +2,8 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
-import torchmetrics
 from torch.utils.data import DataLoader
+import torchmetrics
 
 def visualize_tensor_as_image(tensor):
     # Assuming the input tensor is a square matrix
@@ -161,7 +161,51 @@ def test_IM(loader, model, cnn, device):
     print(torch.mean(torch.cat(invariance_measure_cnn)))
     return torch.mean(torch.cat(invariance_measures))
 
-def validate(model: torch.nn.Module, weights_file: str, valid_data: DataLoader, device: str, mlp: bool):
+def test_IM_single(loader, model, device, is_mlp):
+    model.eval()
+    directions = ["u", "d", "l", "r"]
+    invariance_measures = []
+    n = 0
+    correct_normal = 0
+    correct_shifted = 0
+
+    for images,labels in loader:
+        #images: batch channel rows cols
+        labels = labels.to(device)
+        images = images.squeeze().to(device)
+        shifted = []
+        non_shifted = []
+        for img in images:
+            np.random.shuffle(directions)
+            sh = shift_preserving_shape(img, direction=directions[0], max_shift=5)
+            #sh = random_affine(img.unsqueeze(0))
+            if sh is not None:
+                n = n + 1
+                #visualize_tensor_as_image(img.cpu())
+                #visualize_tensor_as_image(sh.cpu())
+                shifted.append(sh.unsqueeze(0))
+                non_shifted.append(img.unsqueeze(0))
+        shifted = torch.cat(shifted, dim=0)
+        non_shifted = torch.cat(non_shifted, dim=0)
+        with torch.no_grad():
+            if is_mlp:
+                shifted = shifted.view(-1, shifted.shape[-1] * shifted.shape[-2])
+                non_shifted = non_shifted.view(-1, non_shifted.shape[-1] * non_shifted.shape[-2])
+                unshifted_labels = model(non_shifted)
+                shifted_labels = model(shifted)
+            else:
+                unshifted_labels = model(non_shifted.unsqueeze(1))
+                shifted_labels = model(shifted.unsqueeze(1))
+            
+        correct_normal = correct_normal + torch.sum(torch.max(unshifted_labels, dim = 1)[1] == labels).item()
+        correct_shifted = correct_shifted + torch.sum(torch.max(shifted_labels, dim= 1)[1] == labels).item()
+        invariance_measures.append(invariance_measure(unshifted_labels, shifted_labels).unsqueeze(0))
+    print(f"Correct normal: {correct_normal/n}\n"
+          + f"Correct shifted: {correct_shifted/n}\n")
+    
+    return torch.mean(torch.cat(invariance_measures))
+
+def validate(model: torch.nn.Module, weights_file: str, valid_data: DataLoader, device: str, is_mlp: bool):
     """Run the model on the test data and save all relevant metrics to file."""
     model.load_state_dict(torch.load(weights_file))
     model.to(device)
@@ -171,12 +215,11 @@ def validate(model: torch.nn.Module, weights_file: str, valid_data: DataLoader, 
     batch_accu_sum = 0
     batch_nlll_sum = 0
     batch_ecel_sum = 0
-    batch_invl_sum = 0
     totnum_batches = 0
     for (x,y) in valid_data:
         x = x.to(device)
         y_true = y.to(device)
-        if (mlp):
+        if (is_mlp):
             y_pred = model(x.view(-1,784))
         else:
             y_pred = model(x)
@@ -195,6 +238,7 @@ def validate(model: torch.nn.Module, weights_file: str, valid_data: DataLoader, 
         "accu": (batch_accu_sum / totnum_batches).cpu().item(),
         "nlll": (batch_nlll_sum / totnum_batches).cpu().item(),
         "ecel": (batch_ecel_sum / totnum_batches).cpu().item(),
+        "test_IM": test_IM_single(valid_data, model, device, is_mlp)
     }
     for key, value in metrics.items():
         print(f"{key}: {value:.8f}")
