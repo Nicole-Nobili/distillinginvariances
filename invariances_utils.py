@@ -2,6 +2,8 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
+import torchmetrics
+from torch.utils.data import DataLoader
 
 def visualize_tensor_as_image(tensor):
     # Assuming the input tensor is a square matrix
@@ -158,3 +160,44 @@ def test_IM(loader, model, cnn, device):
     plt.imshow(shifted_image, cmap="gray")
     print(torch.mean(torch.cat(invariance_measure_cnn)))
     return torch.mean(torch.cat(invariance_measures))
+
+def validate(model: torch.nn.Module, weights_file: str, valid_data: DataLoader, device: str, mlp: bool):
+    """Run the model on the test data and save all relevant metrics to file."""
+    model.load_state_dict(torch.load(weights_file))
+    model.to(device)
+    nll = torch.nn.NLLLoss().to(device)
+    ece = torchmetrics.classification.MulticlassCalibrationError(num_classes=10)
+
+    batch_accu_sum = 0
+    batch_nlll_sum = 0
+    batch_ecel_sum = 0
+    batch_invl_sum = 0
+    totnum_batches = 0
+    for (x,y) in valid_data:
+        x = x.to(device)
+        y_true = y.to(device)
+        if (mlp):
+            y_pred = model(x.view(-1,784))
+        else:
+            y_pred = model(x)
+        accu = torch.sum(y_pred.max(dim=1)[1] == y_true) / len(y_true)
+
+        log_probs = torch.nn.LogSoftmax(dim=1)(y_pred)
+        nll_loss = nll(log_probs, y_true)
+        ece_loss = ece(y_pred, y_true)
+
+        batch_accu_sum += accu
+        batch_nlll_sum += nll_loss
+        batch_ecel_sum += ece_loss
+        totnum_batches += 1
+
+    metrics = {
+        "accu": (batch_accu_sum / totnum_batches).cpu().item(),
+        "nlll": (batch_nlll_sum / totnum_batches).cpu().item(),
+        "ecel": (batch_ecel_sum / totnum_batches).cpu().item(),
+    }
+    for key, value in metrics.items():
+        print(f"{key}: {value:.8f}")
+        print("")
+
+    return metrics

@@ -188,48 +188,7 @@ class Distiller(nn.Module):
             + "---"
         )
 
-
-    def validate(model: nn.Module, weights_file: str, valid_data: DataLoader, device: str):
-        """Run the model on the test data and save all relevant metrics to file."""
-        model.load_state_dict(torch.load(weights_file))
-        model.to(device)
-        nll = nn.NLLLoss().to(device)
-        ece = torchmetrics.classification.MultiClassCalibrationError(num_classes=10)
-
-        batch_accu_sum = 0
-        batch_nlll_sum = 0
-        batch_ecel_sum = 0
-        barch_incl_sum = 0
-        totnum_batches = 0
-        for data in valid_data:
-            data = data.to(device)
-            y_true = data.y.flatten()
-            y_pred = model.predict(data)
-
-            accu = torch.sum(y_pred.max(dim=1)[1] == y_true) / len(y_true)
-
-            log_probs = nn.LogSoftmax(dim=1)(y_pred)
-            nll_loss = nll(log_probs, y_true)
-            ece_loss = ece(y_pred, y_true)
-            # inv_loss = test_IM(valid_data, model)
-            batch_accu_sum += accu
-            batch_nlll_sum += nll_loss
-            batch_ecel_sum += ece_loss
-            # batch_invl_sum += inv_loss
-            totnum_batches += 1
-
-        metrics = {
-            "accu": (batch_accu_sum / totnum_batches).cpu().item(),
-            "nlll": (batch_nlll_sum / totnum_batches).cpu().item(),
-            "ecel": (batch_ecel_sum / totnum_batches).cpu().item(),
-            # "invl": (batch_invl_sum / totnum_batches).cpu().item(),
-        }
-        for key, value in metrics.items():
-            print(f"{key}: {value:.8f}")
-        print("")
-
-        return metrics
-    
+   
     def compute_fidelity(self, test_loader):
        """Compute the student-teacher average top-1 agreement and the KL divergence."""
        kldiv = nn.KLDivLoss(reduction="batchmean", log_target=True)
