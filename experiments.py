@@ -3,7 +3,6 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-from models.cnn import SimpleCNN
 from models.resnet import resnet18_mnist
 from models.mlp import MLP
 from distillation_utils import Distiller
@@ -93,14 +92,14 @@ try:
 
         #Loading undistilled MLP
         if TRAIN:
-            undistilled_mlp = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 2048,
+            undistilled_mlp = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
                 hidden_layers= 4, device='cuda')
             criterion_mlp = torch.nn.CrossEntropyLoss()
             optimizer_mlp = torch.optim.Adam(undistilled_mlp.parameters(), lr=lr)
             undistilled_mlp.training_loop(train_loader=train_loader, optimizer=optimizer_mlp, criterion=criterion_mlp, 
                     num_epochs=5, save_path_folder="saved_models_undistilled" + "_rs" + str(random_seed))
         if not TRAIN:
-            undistilled_mlp = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 2048,
+            undistilled_mlp = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
                     hidden_layers= 4, device='cuda', from_saved_state_dict="saved_models_undistilled" + "_rs" + str(random_seed) + "/mlp")
         print("MLP WITHOUT SHIFT AUGMENTED DATA")
         valid = validate(model=undistilled_mlp, weights_file=None, valid_data=test_loader, device=device, is_mlp= True)
@@ -113,14 +112,14 @@ try:
 
         #Loading undistilled MLP augmented
         if TRAIN:
-            undistilled_mlp_augmented = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 2048,
+            undistilled_mlp_augmented = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
                 hidden_layers= 4, device='cuda')
             criterion_mlp = torch.nn.CrossEntropyLoss()
             optimizer_mlp = torch.optim.Adam(undistilled_mlp_augmented.parameters(), lr=lr)
             undistilled_mlp_augmented.training_loop(train_loader=train_augmented_loader, optimizer=optimizer_mlp, criterion=criterion_mlp, 
                     num_epochs=5, save_path_folder="saved_models_undistilled_augmented"  + "_rs" + str(random_seed))
         if not TRAIN:
-            undistilled_mlp_augmented = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 2048,
+            undistilled_mlp_augmented = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
                     hidden_layers= 4, device='cuda', from_saved_state_dict="saved_models_undistilled_augmented" + "_rs" + str(random_seed) + "/mlp")
         print("MLP TRAINED WITH SHIFT AUGMENTED DATA")
         valid = validate(model=undistilled_mlp_augmented, weights_file=None, valid_data=test_loader, device=device, is_mlp= True)
@@ -208,9 +207,9 @@ try:
             #Self distilling MLP (only from unshifted data)
             save_path_folder = "saved_models_selfdistill_unshifted" + "_rs" + str(random_seed) + "_temp" + str(temperature) + "/"
             teacher_path = "saved_models_undistilled" + "_rs" + str(random_seed) + "/mlp"
-            mlp_student = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 2048,
+            mlp_student = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
                         hidden_layers= 4, device=device)
-            mlp_teacher = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 2048,
+            mlp_teacher = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
                         hidden_layers= 4, device=device, from_saved_state_dict=teacher_path)
             print("MODEL MLP TEACHER NOT SHIFT INVARIANT")
             validate(model=mlp_teacher, weights_file=None, valid_data=test_loader, device=device, is_mlp= True)
@@ -240,10 +239,10 @@ try:
             #Self distilling MLP (augmented)
             save_path_folder = "saved_models_selfdistill_augmented" + "_rs" + str(random_seed) + "_temp" + str(temperature) + "/"
             teacher_path = "saved_models_undistilled_augmented" + "_rs" + str(random_seed) + "/mlp"
-            mlp_student = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 2048,
+            mlp_student = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
                         hidden_layers= 4, device=device)
 
-            mlp_teacher = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 2048,
+            mlp_teacher = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
                         hidden_layers= 4, device=device, from_saved_state_dict=teacher_path)
             print("MODEL MLP TEACHER SHIFT INVARIANT")
             validate(model=mlp_teacher, weights_file=teacher_path, valid_data=test_loader, device=device, is_mlp= True)
@@ -274,10 +273,10 @@ try:
             teacher_path_1 = "saved_structurallyinv" + "_rs" + str(random_seed) + "/model_1"
             teacher_path_2 = "saved_structurallyinv" + "_rs" + str(random_seed) + "/model_2"
 
-            mlp_student_1 = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 2048,
+            mlp_student_1 = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
                         hidden_layers= 4, device=device)
 
-            mlp_student_2 = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 2048,
+            mlp_student_2 = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
                         hidden_layers= 4, device=device)
 
             teacher_1 = resnet18_mnist().to(device)
@@ -346,21 +345,24 @@ try:
                 else:
                     res[key].append("na")
 
-        """
-        # Collect all variable names in the current scope
-        variables_to_delete = locals().copy()
-
-        # Delete Torch variables
-        for var_name in variables_to_delete:
-            if isinstance(variables_to_delete[var_name], torch.Tensor):
-                del variables_to_delete[var_name]
-
-        print("deleted local variables")
-        """
-
 
     res = pd.DataFrame(res)
     res.to_excel('solutions.xlsx', index=False)
+
+    columns = ["accuracy", "NLL", "ECEL", "SINV", "T1agree", "KLDiv"]
+    for col in columns:
+        if col in ["T1agree", "KLDiv"]:
+            res[col] = res[col].transform(lambda x: x if x != "na" else None)
+        mean = res.groupby(["Model","temp"])[col].transform("mean")
+        sensitivity = res.groupby(["Model", "temp"])[col].transform(lambda x: x.max()- x.min())
+        res[col] = mean
+        res[col + " sensitivity"] = sensitivity
+    res = res.drop_duplicates(subset=['Model', 'temp'])
+    res = res.reset_index(drop=True)
+    cols = ["T1agree", "KLDiv", "T1agree sensitivity", "KLDiv sensitivity"]
+    for col in cols:
+        res[col] = res[col].fillna("na")
+    res.to_excel("solutions_processed.xlsx")
 
     print("done")
 except KeyboardInterrupt:

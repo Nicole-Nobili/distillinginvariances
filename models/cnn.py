@@ -10,7 +10,7 @@ class SimpleCNN(nn.Module):
         )
         self.temperature = temperature
 
-    def _make_conv_layers(self, in_channels, num_conv_layers):
+    def _make_conv_layers(self, in_channels, num_conv_layers):    
         layers = []
         for i in range(num_conv_layers):
             # Adjust the number of output channels based on your requirements
