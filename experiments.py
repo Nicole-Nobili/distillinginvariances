@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from models.resnet import resnet18_mnist
 from models.mlp import MLP
 from distillation_utils import Distiller
-from invariances_utils import shift_preserving_shape, test_IM, validate
+from invariances_utils import shift_preserving_shape, validate
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms

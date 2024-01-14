@@ -17,7 +17,7 @@ def visualize_tensor_as_image(tensor):
 def shift_not_preserving_shape(image, direction : str, max_shift: int):
     img = torch.clone(image)
     shift = np.random.randint(low=1, high= max_shift+1)
-    visualize_tensor_as_image(img)
+    #visualize_tensor_as_image(img)
     if direction == "u":
         img = torch.roll(img, -shift, 0)
         img[-shift:,:] = torch.full(img[-shift:,:].shape, -1)
@@ -32,7 +32,7 @@ def shift_not_preserving_shape(image, direction : str, max_shift: int):
         img[:,:shift] = torch.full(img[:,:shift].shape, -1)
     else:
         raise ValueError("wrong value passed")
-    visualize_tensor_as_image(img)
+    #visualize_tensor_as_image(img)
     return img
 
 def shift_preserving_shape(image, direction : str, max_shift: int):
