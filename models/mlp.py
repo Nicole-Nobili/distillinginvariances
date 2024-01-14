@@ -2,7 +2,7 @@
 
 import torch.nn as nn
 import torch
-import deepspeed
+#import deepspeed
 
 
 class MLP(nn.Module):
@@ -38,7 +38,6 @@ class MLP(nn.Module):
                     "found!"
                 )
         layers.append(nn.Linear(hidden_size, output_dim))
-        print("Not using softmax")
         # layers.append(nn.Softmax())
 
         self.layers = nn.Sequential(*layers).to(device)
@@ -59,11 +58,11 @@ class MLP(nn.Module):
         train_loader,
         save_path_folder: str = "saved_models",
     ):
-        prof = deepspeed.profiling.flops_profiler.FlopsProfiler(model)
+        #prof = deepspeed.profiling.flops_profiler.FlopsProfiler(model)
         profile_epoch = 0
         for epoch in range(num_epochs):
-            if epoch == profile_epoch:
-                prof.start_profile()
+            #if epoch == profile_epoch:
+                #prof.start_profile()
             for i, (x, labels) in enumerate(train_loader):
                 x = x.view(-1, 784)
                 outputs = self.forward(x.to(self.device))
@@ -77,15 +76,15 @@ class MLP(nn.Module):
                     print(
                         f"Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}"
                     )
-                if epoch == profile_epoch and i == 0:
-                    prof.stop_profile()
-                    flops = prof.get_total_flops()
-                    prof.end_profile()
+                #if epoch == profile_epoch and i == 0:
+                    #prof.stop_profile()
+                    #flops = prof.get_total_flops()
+                    #prof.end_profile()
         # Save the trained model
         save_path = save_path_folder + "\mlp"
         torch.save(self.state_dict(), save_path)
         print(f"Model saved as {save_path}!")
-        print("Model flops: ", flops)
+        #print("Model flops: ", flops)
 
     def eval_loop(self, test_loader):
         with torch.no_grad():

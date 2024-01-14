@@ -11,15 +11,18 @@ class Distiller(nn.Module):
         student: nn.Module,
         teacher: nn.Module,
         device: str,
+        temp: float,
         lr: float = 0.001,
         epochs: int = 10,
         early_stopping: int = 5,
-        temp: float = 3.5,
         alpha: float = 0,
+        load_student_from_path: str = None,
+        is_teacher_mlp: bool = False
     ):
         super(Distiller, self).__init__()
         self.student = student
         self.teacher = teacher
+        self.is_teacher_mlp = is_teacher_mlp
 
         self.optimiser = torch.optim.Adam(self.student.parameters(), lr=lr)
 
@@ -42,7 +45,12 @@ class Distiller(nn.Module):
         self.epochs = epochs
         self.early_stopping = early_stopping
 
-    def distill(self, train_data: DataLoader, valid_data: DataLoader):
+        if load_student_from_path is not None:
+            state_dict = torch.load(load_student_from_path)
+            student.load_state_dict(state_dict=state_dict)
+
+
+    def distill(self, train_data: DataLoader, valid_data: DataLoader, save_path_folder = None):
         """Distill a teacher into a student model."""
         best_accu = 0
         epochs_no_improve = 0
@@ -100,7 +108,8 @@ class Distiller(nn.Module):
             distill_loss_running = []
             total_loss_running = []
             student_accu_running = []
-            for i, (x,y) in enumerate(valid_data):
+
+            for x,y in valid_data:
                 x = x.to(self.device)
                 y = y.to(self.device)
                 with torch.no_grad():
@@ -142,7 +151,12 @@ class Distiller(nn.Module):
                 epochs_no_improve = 0
 
             self.print_metrics(epoch)
-
+        
+        if save_path_folder is not None:
+            save_path = save_path_folder + "distiller"
+            torch.save(self.get_student().state_dict(), save_path)
+            print(f"Student model saved as {save_path}!")
+    
         return {
             "student_train_losses": self.all_student_loss_train,
             "student_train_accurs": self.all_student_accu_train,
@@ -150,7 +164,7 @@ class Distiller(nn.Module):
             "student_valid_losses": self.all_student_loss_valid,
             "student_valid_accurs": self.all_student_accu_valid,
             "distill_valid_losses": self.all_distill_loss_valid
-        }
+        }            
 
     def get_student(self):
         return self.student
@@ -188,6 +202,8 @@ class Distiller(nn.Module):
             + "---"
         )
 
+    def get_temperature(self):
+        return self.temp
    
     def compute_fidelity(self, test_loader):
        """Compute the student-teacher average top-1 agreement and the KL divergence."""
@@ -197,8 +213,13 @@ class Distiller(nn.Module):
        teacher = self.teacher
        student = self.student
        for x,_ in test_loader:
-          y_teacher = teacher(x)
-          y_student = student(x)
+          x = x.to(self.device)
+          if self.is_teacher_mlp:
+            y_teacher = teacher(x.view(-1, 784))
+            y_student = student(x.view(-1, 784))
+          else:    
+            y_teacher = teacher(x)
+            y_student = student(x.view(-1, 784))              
           top1_agreement = torch.sum(
                 y_student.max(dim=1)[1] == y_teacher.max(dim=1)[1]
             ) / len(y_student)
@@ -213,8 +234,8 @@ class Distiller(nn.Module):
        valid_kldiv_loss = np.mean(kldiv_loss_running)
 
        return {
-         "top1_agreement": valid_top1_agreement,
-         "teach_stu_kldiv": valid_kldiv_loss
+         "T1agree": valid_top1_agreement,
+         "KLDiv": valid_kldiv_loss
        }
     
 

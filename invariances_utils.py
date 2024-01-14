@@ -207,41 +207,44 @@ def test_IM_single(loader, model, device, is_mlp):
 
 def validate(model: torch.nn.Module, weights_file: str, valid_data: DataLoader, device: str, is_mlp: bool):
     """Run the model on the test data and save all relevant metrics to file."""
-    model.load_state_dict(torch.load(weights_file))
+    if weights_file is not None:
+        model.load_state_dict(torch.load(weights_file))
     model.to(device)
-    nll = torch.nn.NLLLoss().to(device)
+    nll = torch.nn.NLLLoss()
     ece = torchmetrics.classification.MulticlassCalibrationError(num_classes=10)
 
     batch_accu_sum = 0
     batch_nlll_sum = 0
     batch_ecel_sum = 0
     totnum_batches = 0
-    for (x,y) in valid_data:
-        x = x.to(device)
-        y_true = y.to(device)
-        if (is_mlp):
-            y_pred = model(x.view(-1,784))
-        else:
-            y_pred = model(x)
-        accu = torch.sum(y_pred.max(dim=1)[1] == y_true) / len(y_true)
+    model.eval()
+    with torch.no_grad():
+        for i, (x,y) in enumerate(valid_data):
+            x = x.to(device)
+            y_true = y.to(device)
+            if (is_mlp):
+                y_pred = model(x.view(-1,784))
+            else:
+                y_pred = model(x)
+            accu = torch.sum(y_pred.max(dim=1)[1] == y_true) / len(y_true)
 
-        log_probs = torch.nn.LogSoftmax(dim=1)(y_pred)
-        nll_loss = nll(log_probs, y_true)
-        ece_loss = ece(y_pred, y_true)
+            log_probs = torch.nn.LogSoftmax(dim=1)(y_pred)
+            nll_loss = nll(log_probs, y_true)
+            ece_loss = ece(y_pred, y_true)
 
-        batch_accu_sum += accu
-        batch_nlll_sum += nll_loss
-        batch_ecel_sum += ece_loss
-        totnum_batches += 1
+            batch_accu_sum += accu
+            batch_nlll_sum += nll_loss
+            batch_ecel_sum += ece_loss
+            totnum_batches += 1
 
-    metrics = {
-        "accu": (batch_accu_sum / totnum_batches).cpu().item(),
-        "nlll": (batch_nlll_sum / totnum_batches).cpu().item(),
-        "ecel": (batch_ecel_sum / totnum_batches).cpu().item(),
-        "test_IM": test_IM_single(valid_data, model, device, is_mlp)
-    }
-    for key, value in metrics.items():
-        print(f"{key}: {value:.8f}")
-        print("")
+        metrics = {
+            "accuracy": (batch_accu_sum / totnum_batches).cpu().item(),
+            "NLL": (batch_nlll_sum / totnum_batches).cpu().item(),
+            "ECEL": (batch_ecel_sum / totnum_batches).cpu().item(),
+            "SINV": test_IM_single(valid_data, model, device, is_mlp).cpu().item()
+        }
+        for key, value in metrics.items():
+            print(f"{key}: {value:.8f}")
+            print("")
 
-    return metrics
+        return metrics
