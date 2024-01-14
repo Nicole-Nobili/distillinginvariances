@@ -7,7 +7,8 @@ from torchvision import transforms
 import deepspeed
 
 def main():
-    calc_mlp()
+    calc_mlp(2048)
+    calc_mlp(512)
     calc_cnn()
 
 def calc_cnn():
@@ -34,8 +35,8 @@ def calc_cnn():
 
         
 
-def calc_mlp():
-    model_mlp = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 2048,
+def calc_mlp(hidden_size):
+    model_mlp = MLP(input_dim = 784, output_dim= num_classes, hidden_size= hidden_size,
                             hidden_layers= 4, device=device)
     criterion_mlp = torch.nn.CrossEntropyLoss()
     optimizer_mlp = torch.optim.Adam(model_mlp.parameters(), lr=lr)
@@ -56,7 +57,8 @@ def calc_mlp():
                 prof.stop_profile()
                 flops = prof.get_total_flops()
                 prof.end_profile()
-                print("Model flops MLP: ", flops)
+                temp = "Model flops MLP_" + str(hidden_size)
+                print(temp, flops)
                 return
     
 
