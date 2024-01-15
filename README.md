@@ -12,6 +12,6 @@ clone the repo
    git clone https://github.com/Nicole-Nobili/distillinginvariances.git
 ```
 
-The repository consists of independent experiments conducted over three datasets organized into three folders: jetid_experiments, mnist_experiments and modelnet_experiments. Instructions on how to run each indivual experiment are provided the README within the respective folder.
+The repository consists of independent experiments conducted over three datasets organized into three folders: jetid_experiments, mnist_experiments and modelnet_experiments. Instructions on how to run each indivual experiment are provided in the README within the respective folder.
 
 
