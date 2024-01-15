@@ -45,9 +45,7 @@ def main(config):
         storage=f"sqlite:///{outdir}/{config['storage']}.db",
         load_if_exists=True,
     )
-    study.optimize(
-        Objective(device, config), n_trials=250, gc_after_trial=True
-    )
+    study.optimize(Objective(device, config), n_trials=250, gc_after_trial=True)
     print("Best hyperparameters:", study.best_trial.params)
 
 
@@ -63,6 +61,7 @@ class Objective:
         config: Dictionary containing the hyperparameters that should be optimised and
             their ranges.
     """
+
     def __init__(self, device: str, config: dict):
         self.device = device
         self.config = config
@@ -97,11 +96,13 @@ class Objective:
         del model_hyperparams["nlayers"]
         del model_hyperparams["nnodes"]
 
-        model_hyperparams.update({
-            "layers": layers,
-            "dropout_rate": ,
-            "activ": activ,
-        })
+        model_hyperparams.update(
+            {
+                "layers": layers,
+                "dropout_rate": dropout_rate,
+                "activ": activ,
+            }
+        )
 
         model = util.get_model(self.config["model_type"], model_hyperparams)
         util.profile_model(model, train_data)
@@ -111,15 +112,18 @@ class Objective:
         lr_upper_limit = self.config["training_hyperparams"]["lr"][1]
         wg_lower_limit = self.config["training_hyperparams"]["weight_decay"][0]
         wg_upper_limit = self.config["training_hyperparams"]["weight_decay"][1]
-        training_hyperparams.update({
-            "lr": trial.suggest_float("lr", lr_lower_limit, lr_upper_limit),
-            "weight_decay": trial.suggest_loguniform("weight_decay", wg_lower_limit, wg_upper_limit),
-        })
+        training_hyperparams.update(
+            {
+                "lr": trial.suggest_float("lr", lr_lower_limit, lr_upper_limit),
+                "weight_decay": trial.suggest_loguniform(
+                    "weight_decay", wg_lower_limit, wg_upper_limit
+                ),
+            }
+        )
 
         valid_accu = train(
             model, train_data, valid_data, self.device, training_hyperparams
         )
-
 
         return valid_accu
 

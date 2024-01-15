@@ -72,12 +72,12 @@ def main(args: dict):
             )
             target_teacher_model = util.get_model(
                 config_target_teacher["model_type"],
-                config_target_teacher["model_hyperparams"]
+                config_target_teacher["model_hyperparams"],
             )
             weights_file = os.path.join(
                 config["target_teacher"],
                 "seed" + str(config["teacher_seed"]),
-                "model.pt"
+                "model.pt",
             )
             target_teacher_model.load_state_dict(torch.load(weights_file))
 
@@ -116,12 +116,7 @@ def main(args: dict):
     print(f"{metrics_file_path}")
 
 
-def validate(
-    model: nn.Module,
-    weights_file: str,
-    valid_data: DataLoader,
-    device: str
-):
+def validate(model: nn.Module, weights_file: str, valid_data: DataLoader, device: str):
     """Run the model on the test data and save all relevant metrics to file."""
     model.load_state_dict(torch.load(weights_file))
     model.to(device)
@@ -169,7 +164,7 @@ def validate(
     return metrics
 
 
-def compute_fidelity(student, teacher, valid_data: DataLoader, device: str, flag = ""):
+def compute_fidelity(student, teacher, valid_data: DataLoader, device: str, flag=""):
     """Compute the student-teacher average top-1 agreement and the KL divergence."""
     kldiv = nn.KLDivLoss(reduction="batchmean", log_target=True)
     top1_agreement_running = []
@@ -186,7 +181,7 @@ def compute_fidelity(student, teacher, valid_data: DataLoader, device: str, flag
         ) / len(y_student)
         kldiv_loss = kldiv(
             nn.functional.log_softmax(y_teacher, dim=1),
-            nn.functional.log_softmax(y_student, dim=1)
+            nn.functional.log_softmax(y_student, dim=1),
         )
         top1_agreement_running.append(top1_agreement.cpu().item())
         kldiv_loss_running.append(kldiv_loss.cpu().item())
@@ -196,7 +191,7 @@ def compute_fidelity(student, teacher, valid_data: DataLoader, device: str, flag
 
     return {
         f"top1_agreement{flag}": valid_top1_agreement,
-        f"teach_stu_kldiv{flag}": valid_kldiv_loss
+        f"teach_stu_kldiv{flag}": valid_kldiv_loss,
     }
 
 
@@ -241,8 +236,12 @@ def test_jitt_inv(model: nn.Module, data: DataLoader):
     y_normal = model.predict(data)
 
     # Translate each object sample in a random direction with a random magnitude.
-    translation = torch.rand(data.batch_size, data.pos.size(-1)).to(data.pos.device)*0.1
-    translation = translation.repeat_interleave(int(data.size(0)/data.batch_size), dim=0)
+    translation = (
+        torch.rand(data.batch_size, data.pos.size(-1)).to(data.pos.device) * 0.1
+    )
+    translation = translation.repeat_interleave(
+        int(data.size(0) / data.batch_size), dim=0
+    )
     data.pos = torch.add(data.pos, translation)
     y_transf = model.predict(data)
     # Translate each object back to its initial position.

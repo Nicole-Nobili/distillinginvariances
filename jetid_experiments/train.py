@@ -31,7 +31,6 @@ from torch.utils.data import DataLoader
 import util
 
 
-
 def main(config):
     device = args.device
     outdir = util.make_output_directory("trained_models", config["outdir"])
@@ -77,13 +76,13 @@ def train(
         weight_decay=training_hyperparams["weight_decay"],
     )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode='max',
-            patience=training_hyperparams["lr_patience"],
-            factor=0.1,
-            threshold=1e-3,
-            verbose=True
-        )
+        optimizer,
+        mode="max",
+        patience=training_hyperparams["lr_patience"],
+        factor=0.1,
+        threshold=1e-3,
+        verbose=True,
+    )
     print(util.tcols.OKGREEN + "Optimizer summary: " + util.tcols.ENDC)
     print(optimizer)
 
@@ -130,7 +129,9 @@ def train(
 
             batch_loss_sum += loss
             totnum_batches += 1
-            batch_accu_sum += torch.sum(y_pred.max(dim=1)[1] == y_true.max(dim=1)[1]) / len(y_true)
+            batch_accu_sum += torch.sum(
+                y_pred.max(dim=1)[1] == y_true.max(dim=1)[1]
+            ) / len(y_true)
 
             if epoch == profile_epoch and totnum_batches == 1:
                 prof.stop_profile()
@@ -156,7 +157,9 @@ def train(
             if training_hyperparams["loss"] == "nll":
                 y_pred = nn.functional.log_softmax(y_pred, dim=1)
             loss = loss_function(y_pred, y_true)
-            batch_accu_sum += torch.sum(y_pred.max(dim=1)[1] == y_true.max(dim=1)[1]) / len(y_true)
+            batch_accu_sum += torch.sum(
+                y_pred.max(dim=1)[1] == y_true.max(dim=1)[1]
+            ) / len(y_true)
             batch_loss_sum += loss
             totnum_batches += 1
 

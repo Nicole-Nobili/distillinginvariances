@@ -70,12 +70,12 @@ def main(args: dict):
             )
             target_teacher_model = util.get_model(
                 config_target_teacher["model_type"],
-                config_target_teacher["model_hyperparams"]
+                config_target_teacher["model_hyperparams"],
             )
             weights_file = os.path.join(
                 config["target_teacher"],
                 "seed" + str(config["teacher_seed"]),
-                "model.pt"
+                "model.pt",
             )
             target_teacher_model.load_state_dict(torch.load(weights_file))
 
@@ -114,12 +114,7 @@ def main(args: dict):
     print(f"{metrics_file_path}")
 
 
-def validate(
-    model: nn.Module,
-    weights_file: str,
-    valid_data: DataLoader,
-    device: str
-):
+def validate(model: nn.Module, weights_file: str, valid_data: DataLoader, device: str):
     """Run the model on the test data and save all relevant metrics to file."""
     model.load_state_dict(torch.load(weights_file))
     model.to(device)
@@ -137,7 +132,6 @@ def validate(
 
         y_pred = model(x)
         y_true = y
-
 
         # Compute top-1 accuracy, negative log likelihood, and exp calibration error.
         accu = torch.sum(y_pred.max(dim=1)[1] == y_true.max(dim=1)[1]) / len(y_true)
@@ -165,7 +159,9 @@ def validate(
     return metrics
 
 
-def compute_fidelity(student: nn.Module, teacher: nn.Module, valid_data: DataLoader, device: str, flag = ""):
+def compute_fidelity(
+    student: nn.Module, teacher: nn.Module, valid_data: DataLoader, device: str, flag=""
+):
     """Compute the student-teacher average top-1 agreement and the KL divergence."""
     kldiv = nn.KLDivLoss(reduction="batchmean", log_target=True)
     top1_agreement_running = []
@@ -184,7 +180,7 @@ def compute_fidelity(student: nn.Module, teacher: nn.Module, valid_data: DataLoa
         ) / len(y_student)
         kldiv_loss = kldiv(
             nn.functional.log_softmax(y_teacher, dim=1),
-            nn.functional.log_softmax(y_student, dim=1)
+            nn.functional.log_softmax(y_student, dim=1),
         )
         top1_agreement_running.append(top1_agreement.cpu().item())
         kldiv_loss_running.append(kldiv_loss.cpu().item())
@@ -194,7 +190,7 @@ def compute_fidelity(student: nn.Module, teacher: nn.Module, valid_data: DataLoa
 
     return {
         f"top1_agreement{flag}": valid_top1_agreement,
-        f"teach_stu_kldiv{flag}": valid_kldiv_loss
+        f"teach_stu_kldiv{flag}": valid_kldiv_loss,
     }
 
 

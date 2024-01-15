@@ -96,12 +96,14 @@ def normalised_data(
         plt.ylabel("Probability Density")
         plt.gca().set_yscale("log")
         plt.legend()
-        plt.savefig(os.path.join(
-            outdir, f"{feature_labels[feature]}_{train_or_val}_.pdf")
+        plt.savefig(
+            os.path.join(outdir, f"{feature_labels[feature]}_{train_or_val}_.pdf")
         )
         plt.close()
 
-    print(util.tcols.OKGREEN + "Plots saved to: " + util.tcols.ENDC, outdir, "\U0001f4ca")
+    print(
+        util.tcols.OKGREEN + "Plots saved to: " + util.tcols.ENDC, outdir, "\U0001f4ca"
+    )
 
 
 def constituent_number(outdir: str, x_data: np.ndarray, train_or_val: str):
@@ -138,7 +140,10 @@ def constituent_number(outdir: str, x_data: np.ndarray, train_or_val: str):
     plt.savefig(os.path.join(outdir, f"constituents_plot_{train_or_val}.pdf"))
     plt.close()
 
-    print(util.tcols.OKGREEN + "Plots saved to: " + util.tcols.ENDC, outdir, "\U0001f4ca")
+    print(
+        util.tcols.OKGREEN + "Plots saved to: " + util.tcols.ENDC, outdir, "\U0001f4ca"
+    )
+
 
 def segregate_data(x_data: np.array, y_data: np.array):
     """Divides the data into separate arrays for each class.

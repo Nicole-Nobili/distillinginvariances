@@ -37,7 +37,9 @@ def main(config: dict):
     # Save the config file to the main dir.
     util.save_config_file(config, outdir)
     # Get the configuration of the trained teacher network.
-    config_teacher = util.load_config_file(os.path.join(config["teacher"], "config.yml"))
+    config_teacher = util.load_config_file(
+        os.path.join(config["teacher"], "config.yml")
+    )
 
     config["outdir"] = os.path.join(config["outdir"], f"seed{args.seed}")
     outdir = util.make_output_directory("distilled_mlps", config["outdir"])
@@ -75,7 +77,7 @@ def main(config: dict):
         hist["distill_train_losses"],
         hist["distill_valid_losses"],
         outdir,
-        "distillation"
+        "distillation",
     )
     model_file = os.path.join(outdir, "model.pt")
 

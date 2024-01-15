@@ -12,8 +12,7 @@ def activ_string_to_torch(activ: str):
         "relu": lambda: nn.ReLU(inplace=True),
         "tanh": lambda: nn.Tanh(),
         "sigmoid": lambda: nn.Sigmoid(),
-        "leaky_relu": lambda: nn.LeakyReLU()  
-
+        "leaky_relu": lambda: nn.LeakyReLU(),
     }
     activation = activations.get(activ, lambda: None)()
     if activation is None:
@@ -50,14 +49,14 @@ class MLPBasic(nn.Module):
 
         self.mlp = nn.Sequential()
         for nlayer in range(len(self.layers) - 1):
-            self.mlp.add_module(f"linear_{nlayer}",
-                nn.Linear(self.layers[nlayer], self.layers[nlayer + 1])
+            self.mlp.add_module(
+                f"linear_{nlayer}",
+                nn.Linear(self.layers[nlayer], self.layers[nlayer + 1]),
             )
 
             if nlayer < len(self.layers) - 2:
                 activation = activ_string_to_torch(self.activ)
                 self.mlp.add_module(f"activation_{nlayer}", activation)
-
 
     def forward(self, data):
         x = data.pos
@@ -78,7 +77,7 @@ class MLPReged(nn.Module):
         layers: list,
         output_dim: int,
         activ: str,
-        dropout_rate: float = 0.5
+        dropout_rate: float = 0.5,
     ):
         super(MLPReged, self).__init__()
         self.activ = activ
@@ -94,12 +93,17 @@ class MLPReged(nn.Module):
 
         self.mlp = nn.Sequential()
         for nlayer in range(len(self.layers) - 1):
-            self.mlp.add_module(f"linear_{nlayer}", nn.Linear(self.layers[nlayer], self.layers[nlayer + 1]))
+            self.mlp.add_module(
+                f"linear_{nlayer}",
+                nn.Linear(self.layers[nlayer], self.layers[nlayer + 1]),
+            )
 
             if nlayer < len(self.layers) - 2:
                 activation = activ_string_to_torch(self.activ)
                 self.mlp.add_module(f"activation_{nlayer}", activation)
-                self.mlp.add_module(f"dropout_{nlayer}", nn.Dropout(p=self.dropout_rate))
+                self.mlp.add_module(
+                    f"dropout_{nlayer}", nn.Dropout(p=self.dropout_rate)
+                )
                 self.mlp.add_module("flatten", nn.Flatten(start_dim=1))
 
     def forward(self, x):
@@ -109,4 +113,3 @@ class MLPReged(nn.Module):
     def predict(self, x):
         self.eval()
         return self.forward(x)
-

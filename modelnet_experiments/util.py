@@ -109,7 +109,7 @@ def choose_loss(choice, device):
     """Get a pytorch loss object given a string specified in the configuration file."""
     losses = {
         "ce": lambda: nn.CrossEntropyLoss().to(device),
-        "nll": lambda: nn.NLLLoss().to(device)
+        "nll": lambda: nn.NLLLoss().to(device),
     }
 
     loss = losses.get(choice, lambda: None)()
@@ -152,7 +152,7 @@ def print_data_deets(data, data_type: str):
     print(f"Batched data shape: {tuple(batch.pos.size())}")
     print(f"Classes: {data.dataset.name}")
     print(f"Pre-transforms: {data.dataset.pre_transform.transforms}")
-    if data.dataset.transform is  None:
+    if data.dataset.transform is None:
         print(f"Transforms: None")
     else:
         print(f"Transforms: {data.dataset.transform.transforms}")
@@ -214,7 +214,7 @@ def load_config_file(config_file: str):
     return config
 
 
-def loss_plot(all_train_losses: list, all_valid_losses: list, outdir: str, label = ""):
+def loss_plot(all_train_losses: list, all_valid_losses: list, outdir: str, label=""):
     """Plots the loss for each epoch for the training and validation data."""
     epochs = list(range(len(all_train_losses)))
     plt.plot(
@@ -276,6 +276,7 @@ def accu_plot(all_train_accs: list, all_valid_accs: list, outdir: str):
 
 class tcols:
     """Pretty terminal colors to make the output more readable."""
+
     HEADER = "\033[95m"
     OKBLUE = "\033[94m"
     OKCYAN = "\033[96m"

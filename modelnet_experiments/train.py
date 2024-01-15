@@ -32,7 +32,6 @@ from torch.utils.data import DataLoader
 import util
 
 
-
 def main(config):
     device = args.device
     outdir = util.make_output_directory("trained_models", config["outdir"])
@@ -58,7 +57,7 @@ def main(config):
     torch.save(model.state_dict(), model_file)
     util.loss_plot(hist["train_losses"], hist["valid_losses"], outdir)
     util.accu_plot(hist["train_accurs"], hist["valid_accurs"], outdir)
-    
+
 
 def train(
     model: nn.Module,
@@ -78,13 +77,13 @@ def train(
         weight_decay=training_hyperparams["weight_decay"],
     )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode='max',
-            patience=training_hyperparams["lr_patience"],
-            factor=0.1,
-            threshold=1e-3,
-            verbose=True
-        )
+        optimizer,
+        mode="max",
+        patience=training_hyperparams["lr_patience"],
+        factor=0.1,
+        threshold=1e-3,
+        verbose=True,
+    )
     print(util.tcols.OKGREEN + "Optimizer summary: " + util.tcols.ENDC)
     print(optimizer)
 
@@ -190,8 +189,12 @@ def train(
 
 def translate_data(data: DataLoader):
     """Applies a random translation to each data point."""
-    translation = torch.rand(data.batch_size, data.pos.size(-1)).to(data.pos.device)*0.1
-    translation = translation.repeat_interleave(int(data.size(0)/data.batch_size), dim=0)
+    translation = (
+        torch.rand(data.batch_size, data.pos.size(-1)).to(data.pos.device) * 0.1
+    )
+    translation = translation.repeat_interleave(
+        int(data.size(0) / data.batch_size), dim=0
+    )
     data.pos = torch.add(data.pos, translation)
 
     return data
@@ -227,5 +230,5 @@ def clip_grad(model, max_norm):
 if __name__ == "__main__":
     with open(args.config_file, "r") as stream:
         config = yaml.load(stream, Loader=yaml.Loader)
-            
+
     main(config)

@@ -25,6 +25,7 @@ class DGCNNPaper(nn.Module):
         dropout_rate: The dropout rate for the dropout applied to the layers of the
             output MLP, not the edge convolutional MLPs.
     """
+
     def __init__(
         self,
         input_dim: int,
@@ -32,7 +33,7 @@ class DGCNNPaper(nn.Module):
         output_mlp: list,
         linear_dim: int = 1024,
         k: int = 20,
-        aggr: str = 'max',
+        aggr: str = "max",
         activ: str = "relu",
         dropout_rate: float = 0.5,
     ):
@@ -49,46 +50,46 @@ class DGCNNPaper(nn.Module):
                 [self.input_dim] + [64],
                 act=self.activ,
                 act_kwargs={"negative_slope": 0.2},
-                norm="batch_norm"
+                norm="batch_norm",
             ),
             self.k,
-            self.aggr
+            self.aggr,
         )
         self.conv2 = torch_geometric.nn.DynamicEdgeConv(
             torch_geometric.nn.MLP(
                 [64] + [64],
                 act=self.activ,
                 act_kwargs={"negative_slope": 0.2},
-                norm="batch_norm"
+                norm="batch_norm",
             ),
             self.k,
-            self.aggr
+            self.aggr,
         )
         self.conv3 = torch_geometric.nn.DynamicEdgeConv(
             torch_geometric.nn.MLP(
                 [64] + [128],
                 act=self.activ,
                 act_kwargs={"negative_slope": 0.2},
-                norm="batch_norm"
+                norm="batch_norm",
             ),
             self.k,
-            self.aggr
+            self.aggr,
         )
         self.conv4 = torch_geometric.nn.DynamicEdgeConv(
             torch_geometric.nn.MLP(
                 [128] + [256],
                 act=self.activ,
                 act_kwargs={"negative_slope": 0.2},
-                norm="batch_norm"
+                norm="batch_norm",
             ),
             self.k,
-            self.aggr
+            self.aggr,
         )
 
         self.linear_layer = nn.Sequential(
             nn.Linear(64 + 64 + 128 + 256, linear_dim),
             nn.BatchNorm1d(linear_dim),
-            nn.LeakyReLU(negative_slope=0.2)
+            nn.LeakyReLU(negative_slope=0.2),
         )
 
         self.mlp = torch_geometric.nn.MLP(
@@ -96,7 +97,7 @@ class DGCNNPaper(nn.Module):
             dropout=dropout_rate,
             norm="batch_norm",
             act=self.activ,
-            act_kwargs={"negative_slope": 0.2}
+            act_kwargs={"negative_slope": 0.2},
         )
 
     def forward(self, data):
@@ -123,6 +124,7 @@ class DGCNNAlt(nn.Module):
 
     As above but with only 2 edge conv layers, that have deeper MLPs.
     """
+
     def __init__(
         self,
         input_dim: int,
@@ -130,7 +132,7 @@ class DGCNNAlt(nn.Module):
         output_mlp: list,
         linear_dim: int = 1024,
         k: int = 20,
-        aggr: str = 'max',
+        aggr: str = "max",
         activ: str = "relu",
         dropout_rate: float = 0.5,
     ):
@@ -145,12 +147,10 @@ class DGCNNAlt(nn.Module):
         self.conv1 = torch_geometric.nn.DynamicEdgeConv(
             torch_geometric.nn.MLP([self.input_dim] + [64, 64, 64], act=self.activ),
             self.k,
-            self.aggr
+            self.aggr,
         )
         self.conv2 = torch_geometric.nn.DynamicEdgeConv(
-            torch_geometric.nn.MLP([64] + [128], act=self.activ),
-            self.k,
-            self.aggr
+            torch_geometric.nn.MLP([64] + [128], act=self.activ), self.k, self.aggr
         )
 
         self.linear_layer = nn.Linear(64 + 128, linear_dim)

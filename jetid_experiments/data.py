@@ -35,7 +35,7 @@ class HLS4MLData150(object):
             of this data set.
     """
 
-    def __init__(self, root: str, nconst: int, feats: str, norm: str,  train: bool):
+    def __init__(self, root: str, nconst: int, feats: str, norm: str, train: bool):
         self.root = Path(root)
         self.nconst = nconst
         self.norm = norm
@@ -44,12 +44,17 @@ class HLS4MLData150(object):
         self.type = "train" if self.train else "val"
         self.min_pt = 2
 
-        self.train_url = "https://zenodo.org/records/3602260/files/hls4ml_LHCjet_150p_train.tar.gz"
-        self.test_url = "https://zenodo.org/records/3602260/files/hls4ml_LHCjet_150p_val.tar.gz"
+        self.train_url = (
+            "https://zenodo.org/records/3602260/files/hls4ml_LHCjet_150p_train.tar.gz"
+        )
+        self.test_url = (
+            "https://zenodo.org/records/3602260/files/hls4ml_LHCjet_150p_val.tar.gz"
+        )
 
         self.preproc_output_name = f"{self.type}_{self.nconst}const.npy"
-        self.proc_output_name = \
+        self.proc_output_name = (
             f"{self.type}_{self.norm}_{self.nconst}const_{self.feats}.npy"
+        )
         self.data_file_dir = self._get_raw_data()
         self.x_pro = None
         self.y_pro = None
@@ -166,8 +171,10 @@ class HLS4MLData150(object):
         try:
             x_data_train = np.load(self.root / "processed" / preproc_file_name)
         except OSError as e:
-            print(f"Process the training data with {self.nconst} const and" +
-                  f"{self.min_pt} minimum pt before the test data.")
+            print(
+                f"Process the training data with {self.nconst} const and"
+                + f"{self.min_pt} minimum pt before the test data."
+            )
             print("Exiting...")
             exit(1)
 
@@ -188,22 +195,20 @@ class HLS4MLData150(object):
         self._plot_data(x_data, y_data)
 
         proc_folder = self.root / "processed"
-        np.save(proc_folder /  f"x_{self.proc_output_name}", x_data)
-        np.save(proc_folder /  f"y_{self.proc_output_name}", y_data)
+        np.save(proc_folder / f"x_{self.proc_output_name}", x_data)
+        np.save(proc_folder / f"y_{self.proc_output_name}", y_data)
         del x_data
         del y_data
 
         return (
-            np.load(proc_folder /  f"x_{self.proc_output_name}"),
-            np.load(proc_folder /  f"y_{self.proc_output_name}")
+            np.load(proc_folder / f"x_{self.proc_output_name}"),
+            np.load(proc_folder / f"y_{self.proc_output_name}"),
         )
 
     def _plot_data(self, x_data, y_data):
         """Plots the normalised data."""
         print("Plotting data...")
-        plots_folder = (
-            self.root / f"plots_{self.norm}_{self.nconst}const_{self.feats}"
-        )
+        plots_folder = self.root / f"plots_{self.norm}_{self.nconst}const_{self.feats}"
         if not plots_folder.is_dir():
             os.makedirs(plots_folder)
 
@@ -273,7 +278,7 @@ class HLS4MLData150(object):
         """
         for jet in range(len(x_data)):
             if x_data[jet].shape[0] >= self.nconst:
-                x_data[jet] = x_data[jet][:self.nconst, :]
+                x_data[jet] = x_data[jet][: self.nconst, :]
             else:
                 padding_length = self.nconst - x_data[jet].shape[0]
                 x_data[jet] = np.pad(x_data[jet], ((0, padding_length), (0, 0)))
@@ -286,8 +291,10 @@ class HLS4MLData150(object):
         y = torch.Tensor(self.y_pro)
         return torch.utils.data.TensorDataset(x, y)
 
+
 class tcols:
     """Pretty terminal colors ooooo."""
+
     HEADER = "\033[95m"
     OKBLUE = "\033[94m"
     OKCYAN = "\033[96m"

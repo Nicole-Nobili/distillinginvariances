@@ -33,6 +33,7 @@ class Distiller(nn.Module):
             output and the hard labels. In our experiments, we always set this to 0,
             i.e., the distillation process is solely based on the teacher output.
     """
+
     def __init__(
         self,
         student: nn.Module,
@@ -52,11 +53,11 @@ class Distiller(nn.Module):
         self.optimiser = torch.optim.Adam(self.student.parameters(), lr=lr)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             self.optimiser,
-            mode='max',
+            mode="max",
             patience=lr_patience,
             factor=0.1,
             threshold=1e-3,
-            verbose=True
+            verbose=True,
         )
 
         self.student_loss_fn = nn.CrossEntropyLoss()
@@ -110,8 +111,12 @@ class Distiller(nn.Module):
                 # student outputs that are passed through softmax with temperature.
                 distillation_loss = (
                     self.distillation_loss_fn(
-                        nn.functional.log_softmax(teacher_predictions/self.temp, dim=1),
-                        nn.functional.log_softmax(student_predictions/self.temp, dim=1),
+                        nn.functional.log_softmax(
+                            teacher_predictions / self.temp, dim=1
+                        ),
+                        nn.functional.log_softmax(
+                            student_predictions / self.temp, dim=1
+                        ),
                     )
                     * self.temp**2
                 )
@@ -123,7 +128,9 @@ class Distiller(nn.Module):
                 self.optimiser.zero_grad()
                 total_loss.mean().backward()
                 self.optimiser.step()
-                student_accu = torch.sum(student_predictions.max(dim=1)[1] == y_true.max(dim=1)[1]) / len(y_true)
+                student_accu = torch.sum(
+                    student_predictions.max(dim=1)[1] == y_true.max(dim=1)[1]
+                ) / len(y_true)
 
                 student_loss_running.append(student_loss.cpu().item())
                 distill_loss_running.append(distillation_loss.cpu().item())
@@ -148,15 +155,21 @@ class Distiller(nn.Module):
                 student_loss = self.student_loss_fn(student_predictions, y_true)
                 distillation_loss = (
                     self.distillation_loss_fn(
-                        nn.functional.log_softmax(teacher_predictions/self.temp, dim=1),
-                        nn.functional.log_softmax(student_predictions/self.temp, dim=1),
+                        nn.functional.log_softmax(
+                            teacher_predictions / self.temp, dim=1
+                        ),
+                        nn.functional.log_softmax(
+                            student_predictions / self.temp, dim=1
+                        ),
                     )
                     * self.temp**2
                 )
                 total_loss = (
                     self.alpha * student_loss + (1 - self.alpha) * distillation_loss
                 )
-                student_accu = torch.sum(student_predictions.max(dim=1)[1] == y_true.max(dim=1)[1]) / len(y_true)
+                student_accu = torch.sum(
+                    student_predictions.max(dim=1)[1] == y_true.max(dim=1)[1]
+                ) / len(y_true)
 
                 student_loss_running.append(student_loss.cpu().item())
                 distill_loss_running.append(distillation_loss.cpu().item())
@@ -184,7 +197,7 @@ class Distiller(nn.Module):
             "distill_train_losses": self.all_distill_loss_train,
             "student_valid_losses": self.all_student_loss_valid,
             "student_valid_accurs": self.all_student_accu_valid,
-            "distill_valid_losses": self.all_distill_loss_valid
+            "distill_valid_losses": self.all_distill_loss_valid,
         }
 
     def get_student(self):
