@@ -10,6 +10,7 @@ parser.add_argument("--device", type=str)
 parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
+# Set the seeds for deterministic pytorch training.
 import random
 
 random.seed(args.seed)
@@ -35,13 +36,18 @@ def main(args: dict):
     device = args.device
     model_dirs = [x[0] for x in os.walk(args.models_dir)][1:]
 
+    # Load the configuration file of a trained model or distilled student model.
     config = util.load_config_file(os.path.join(args.models_dir, "config.yml"))
+    # Load the validation data corresponding to its training data.
     valid_data = util.import_data(device, config["data_hyperparams"], train=False)
     util.print_data_deets(valid_data, "Validation")
 
+    # Import the trained model from the config.
     model = util.get_model(config["model_type"], config["model_hyperparams"])
     all_metrics = {"accu": [], "nlll": [], "ecel": [], "perm": [], "jitt": []}
 
+    # Set up additional metrics and import the teacher model if computing the validation
+    # metrics of  a distilled student model.
     if "teacher" in config.keys():
         all_metrics.update({"top1_agreement": [], "teach_stu_kldiv": []})
         config_teacher = util.load_config_file(
@@ -49,11 +55,16 @@ def main(args: dict):
         )
         print(util.tcols.OKGREEN + "Teacher network" + util.tcols.ENDC)
         teacher_model = copy.deepcopy(model)
+        # If the teacher does not have the same architecture as the student, i.e.,
+        # self-distillation, import the actual architecture.
         if not config["model_type"] == config_teacher["model_type"]:
             if not config["model_hyperparams"] == config_teacher["model_hyperparams"]:
                 teacher_model = util.get_model(
                     config_teacher["model_type"], config_teacher["model_hyperparams"]
                 )
+
+        # Import a secondary, unrelated teacher to compute the fidelity metrics of
+        # the distilled student with.
         if "target_teacher" in config.keys():
             all_metrics.update({"top1_agreement'": [], "teach_stu_kldiv'": []})
             config_target_teacher = util.load_config_file(
@@ -75,6 +86,8 @@ def main(args: dict):
         )
         teacher_model.load_state_dict(torch.load(weights_file))
 
+    # Run inference on the validation data and compute metrics for each of the models
+    # in the given model dirs folder.
     for model_dir in model_dirs:
         print(util.tcols.HEADER + f"Model at: {model_dir}" + util.tcols.ENDC)
         weights_file = os.path.join(model_dir, "model.pt")
@@ -88,6 +101,8 @@ def main(args: dict):
         for metric, value in metrics.items():
             all_metrics[metric].append(value)
 
+    # Compute the average and standard deviation for the metrics computed for each
+    # model in the given models dir, i.e., for each seed.
     print(util.tcols.OKGREEN + "Average model metrics: " + util.tcols.ENDC)
     metrics_file_path = os.path.join(args.models_dir, "metrics_avg.log")
     with open(metrics_file_path, "a") as metrics_file:
@@ -130,7 +145,9 @@ def validate(
         nll_loss = nll(log_probs, y_true)
         ece_loss = ece(y_pred, y_true)
 
+        # Compute how invariant the model is to permutations.
         perm_inv_loss = test_perm_inv(model, data)
+        # Compute how invariant the model is to translation.
         jitt_inv_loss = test_jitt_inv(model, data)
 
         batch_accu_sum += accu
@@ -195,6 +212,7 @@ def test_perm_inv(model: nn.Module, data: DataLoader):
     """Computes how invariant a model is with respect to a permutation of the data."""
     y_normal = model.predict(data)
 
+    # Permute the constituents of the data.
     data.pos = data.pos.view(data.batch_size, -1, data.pos.size(1))
     permutation = torch.randperm(data.pos.size(1))
     data.pos = data.pos[:, permutation]
@@ -204,6 +222,8 @@ def test_perm_inv(model: nn.Module, data: DataLoader):
     data.batch = data.batch.flatten()
 
     y_transf = model.predict(data)
+
+    # Reverse the permutation.
     permutation_reversal = torch.sort(permutation).indices
     data.pos = data.pos.view(data.batch_size, -1, data.pos.size(1))
     data.pos = data.pos[:, permutation_reversal]
@@ -217,13 +237,15 @@ def test_perm_inv(model: nn.Module, data: DataLoader):
 
 
 def test_jitt_inv(model: nn.Module, data: DataLoader):
-    """Computes how invariant a model is with respect to a permutation of the data."""
+    """Computes how invariant a model is with respect to a translation of the data."""
     y_normal = model.predict(data)
 
+    # Translate each object sample in a random direction with a random magnitude.
     translation = torch.rand(data.batch_size, data.pos.size(-1)).to(data.pos.device)*0.1
     translation = translation.repeat_interleave(int(data.size(0)/data.batch_size), dim=0)
     data.pos = torch.add(data.pos, translation)
     y_transf = model.predict(data)
+    # Translate each object back to its initial position.
     data.pos = torch.subtract(data.pos, translation)
 
     inv_measure = invariance_measure(y_normal, y_transf)

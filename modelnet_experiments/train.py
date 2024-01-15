@@ -36,19 +36,24 @@ import util
 def main(config):
     device = args.device
     outdir = util.make_output_directory("trained_models", config["outdir"])
+    # Save the config file to the main dir.
     util.save_config_file(config, outdir)
 
+    # Create subdir for each seed.
     config["outdir"] = os.path.join(config["outdir"], f"seed{args.seed}")
     outdir = util.make_output_directory("trained_models", config["outdir"])
 
+    # Import the training and the validation data, sampled and normalised.
     train_data = util.import_data(device, config["data_hyperparams"], train=True)
     util.print_data_deets(train_data, "Training")
     valid_data = util.import_data(device, config["data_hyperparams"], train=False)
     util.print_data_deets(valid_data, "Validation")
 
+    # Import and train the model.
     model = util.get_model(config["model_type"], config["model_hyperparams"])
     hist = train(model, train_data, valid_data, device, config["training_hyperparams"])
 
+    # Saved model and plot the loss and accuracy evolution throught the epochs.
     model_file = os.path.join(outdir, "model.pt")
     torch.save(model.state_dict(), model_file)
     util.loss_plot(hist["train_losses"], hist["valid_losses"], outdir)
@@ -65,6 +70,8 @@ def train(
     """Trains a given model on given data for a number of epochs."""
     model = model.to(device)
     epochs = training_hyperparams["epochs"]
+
+    # Set up the optimiser and its scheduler.
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=training_hyperparams["lr"],
@@ -92,6 +99,7 @@ def train(
     epochs_es_limit = training_hyperparams["early_stopping"]
     best_accu = 0
 
+    # Set up profiler to compute the number of FLOPs the model has during 1st batch.
     prof = deepspeed.profiling.flops_profiler.FlopsProfiler(model)
     profile_epoch = 0
     for epoch in range(epochs):
@@ -153,6 +161,8 @@ def train(
         valid_loss = batch_loss_sum / totnum_batches
         valid_accu = batch_accu_sum / totnum_batches
 
+        # Stop the training if the accuracy stops improving in the first 4 decimals
+        # given a certain patience.
         if round(valid_accu.cpu().item(), 4) <= round(best_accu, 4):
             epochs_no_improve += 1
         else:

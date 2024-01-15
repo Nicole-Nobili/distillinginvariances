@@ -14,10 +14,25 @@ import data_plots
 
 
 class HLS4MLData150(object):
-    """Data class to store the data to be used in learning for the interaction network.
+    """Data class for importing and processing the jet data.
 
-    Attributes:
+    The raw data is available at https://zenodo.org/records/3602260.
+    See Moreno et. al. 2019 - JEDI-net: a jet identification algorithm for a full
+    description of this data set.
 
+    Args:
+        root: The root directory of the data. It should contain a 'raw' and 'processed'
+            folder with raw and processed data. Otherwise, these will be generated.
+        nconst: The number of constituents the jet data should be sampled down to.
+            The raw number of constituents is 150.
+        feats: Which feature selection scheme should be applied. 'ptetaphi' for getting
+            the transverse momentum, pseudo-rapidity, and azimuthal angle of each
+            cosntituents for every jet. Otherwise, 'all' gets all the features of
+            each constituents.
+        norm: What kind of normalisation to apply to the features of the data.
+            Currently implemented: minmax, robust, or standard.
+        train: Whether to import the training data (True) or validation data (False)
+            of this data set.
     """
 
     def __init__(self, root: str, nconst: int, feats: str, norm: str,  train: bool):
@@ -74,16 +89,13 @@ class HLS4MLData150(object):
         return 0
 
     def _check_preprocessed_data_exists(self):
-        """Checks if the processed data exisits or needs to be re-processed."""
+        """Checks if the preprocessed data exisits or needs to be re-processed."""
         if self.root.is_dir():
             proc_folder = self.root / "processed"
             x_preproc_file = proc_folder / f"x_preproc_{self.preproc_output_name}"
             y_preproc_file = proc_folder / f"y_preproc_{self.preproc_output_name}"
 
             if x_preproc_file.is_file() and y_preproc_file.is_file():
-                # print(tcols.OKGREEN + "Imported preprocessed data: " + tcols.ENDC)
-                # print(str(x_preproc_file))
-                # print(str(y_preproc_file))
                 self.x_pre = np.load(x_preproc_file)
                 self.y_pre = np.load(y_preproc_file)
                 return 1
@@ -219,8 +231,8 @@ class HLS4MLData150(object):
         """Gets all the features from the numpy jet array.
 
         The features in this kind of 'selection' are:'
-        (px, py, pz, E, Erel, pT, ptrel, eta, etarel, etarot, phi, phirel, phirot, deltaR,
-        cos(theta), cos(thetarel), pdgid)
+        (px, py, pz, E, Erel, pT, ptrel, eta, etarel, etarot, phi, phirel, phirot,
+        deltaR, cos(theta), cos(thetarel), pdgid)
         """
         return data[:, :, :]
 
@@ -269,6 +281,7 @@ class HLS4MLData150(object):
         return np.array(x_data)
 
     def get_torch_dataset(self):
+        """Convert numpy array data to torch tensor and make a tensor data set."""
         x = torch.Tensor(self.x_pro)
         y = torch.Tensor(self.y_pro)
         return torch.utils.data.TensorDataset(x, y)

@@ -52,6 +52,17 @@ def main(config):
 
 
 class Objective:
+    """Objective optuna function.
+
+    Trains a model and then outputs the accuracy of the model, which is used as the
+    objective value optuna tries to maximise through changing the hyperparameters
+    of a given model. In this case, an MLP.
+
+    Args:
+        device: String specifying the device this optimisation process takes place on.
+        config: Dictionary containing the hyperparameters that should be optimised and
+            their ranges.
+    """
     def __init__(self, device: str, config: dict):
         self.device = device
         self.config = config
@@ -120,7 +131,7 @@ def train(
     device: str,
     training_hyperparams: dict,
 ):
-    """Trains a given model on given data for a number of epochs."""
+    """Trains a given model on given data for a number of epochs. Same as in train.py."""
     model = model.to(device)
     epochs = training_hyperparams["epochs"]
     optimizer = torch.optim.Adam(

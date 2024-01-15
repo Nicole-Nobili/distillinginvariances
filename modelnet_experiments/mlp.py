@@ -25,7 +25,16 @@ def activ_string_to_torch(activ: str):
 
 
 class MLPBasic(nn.Module):
-    """Basic MLP with variable number of layers."""
+    """Basic MLP with variable number of layers.
+
+    Args:
+        input_dim: The input dimension of the flattenet data.
+        layers: List for which the length is the depth of the MLP and each element
+            specifies the width of each layer.
+        output_dim: The output dimension of the network, equal to the number of classes
+            in the data.
+        activ: String specifying the activation between each layer of the network.
+    """
 
     def __init__(self, input_dim: int, layers: list, output_dim: int, activ: str):
         super(MLPBasic, self).__init__()
@@ -61,7 +70,7 @@ class MLPBasic(nn.Module):
 
 
 class MLPReged(nn.Module):
-    """Basic MLP with variable number of layers."""
+    """Same as the basic MLP above but with dropout applied to each layer."""
 
     def __init__(
         self,

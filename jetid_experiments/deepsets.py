@@ -55,7 +55,7 @@ class PermutationEquivariantMax(nn.Module):
 
 
 def activ_string_to_torch(activ: str):
-    """Converts activation name from string to a torch objects."""
+    """Converts activation name from string to a torch object."""
     activations = {
         "relu": lambda: nn.ReLU(inplace=True),
         "tanh": lambda: nn.Tanh(),
@@ -71,7 +71,20 @@ def activ_string_to_torch(activ: str):
 
 
 class DeepSetsEquivariant(nn.Module):
-    """DeepSets permutation equivariant."""
+    """DeepSets permutation equivariant.
+
+    For details on how this network works see Zaheer et. al. 2018 - DeepSets.
+    Args:
+        input_dim: The input dimension of the features.
+        phi_layers: The layers of the phi MLP, applied on the input and before the
+            aggregation operation.
+        rho_layers: The layers of the rho MLP, applied after the aggregation operation.
+        activ: The activation function to use between the layers of both phi and rho.
+        aggreg: The aggregation operation performed over the 1st dimension (node level)
+            of the data. This lies between the two MLPs.
+        dropout: The dropout rate for the dropout applied to the layers of rho.
+        output_dim: The output dimension, equal to the number of classes in the dataset.
+    """
 
     def __init__(
         self,
@@ -160,7 +173,23 @@ class DeepSetsEquivariant(nn.Module):
 
 
 class DeepSetsInvariant(nn.Module):
-    """DeepSets permutation equivariant."""
+    """DeepSets permutation invariant.
+
+    For details on how this network works see Zaheer et. al. 2018 - DeepSets.
+    The difference between this network and its equivariant counterpart is that it does
+    not use any of the permutation equivariant layers in the rho and phi networks.
+
+    Args:
+        input_dim: The input dimension of the features.
+        phi_layers: The layers of the phi MLP, applied on the input and before the
+            aggregation operation.
+        rho_layers: The layers of the rho MLP, applied after the aggregation operation.
+        activ: The activation function to use between the layers of both phi and rho.
+        aggreg: The aggregation operation performed over the 1st dimension (node level)
+            of the data. This lies between the two MLPs.
+        dropout: The dropout rate for the dropout applied to the layers of rho.
+        output_dim: The output dimension, equal to the number of classes in the dataset.
+    """
 
     def __init__(
         self,

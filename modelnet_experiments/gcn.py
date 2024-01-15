@@ -8,6 +8,23 @@ import torch_geometric
 
 
 class DGCNNPaper(nn.Module):
+    """Dynamic graph convolutional neural network.
+
+    This version has 4 layers. The default hyperparameters are identical to the ones
+    used in the original paper Wang et.al. 2019 - Dynamic Graph CNN for learning on
+    point clouds. For more details on how this network works, see the paper.
+
+    Args:
+        input_dim: The input dimension of the features.
+        output_dim: The output dimension, equal to the number of classes in the dataset.
+        output_mlp: The layers of the output mlp, after the edge conv layers.
+        activ: The activation function to use between the layers of all the MLPs in
+            this network, including the edge conv mlps.
+        k: number of neighbours in the edge convolutional layers.
+        aggreg: The aggregation function in the edge convolutional layers.
+        dropout_rate: The dropout rate for the dropout applied to the layers of the
+            output MLP, not the edge convolutional MLPs.
+    """
     def __init__(
         self,
         input_dim: int,
@@ -102,6 +119,10 @@ class DGCNNPaper(nn.Module):
 
 
 class DGCNNAlt(nn.Module):
+    """Dynamic graph convolutional neural network.
+
+    As above but with only 2 edge conv layers, that have deeper MLPs.
+    """
     def __init__(
         self,
         input_dim: int,

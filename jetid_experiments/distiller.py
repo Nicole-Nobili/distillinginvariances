@@ -11,6 +11,28 @@ import util
 
 
 class Distiller(nn.Module):
+    """Performs the knowledge distillation between a given teacher and a student.
+
+    For more details on this process, see
+        Hinton et. al. 2015 - Distilling Knowledge in a Neural Network
+        Stanton et. al. 2021 - Does Knowledge Distillation Really Work?
+
+    Args:
+        student: Student pytorch neural network module.
+        teacher: Teacher pytorch neural network module, pre-trained on the data.
+        device: String that specifies the pytorch device on which to cast the data and
+            the networks.
+        lr: The learning rate to use in the distillation process.
+        lr_patience: Number of epochs after which, if there is no improvement in the
+            accuracy of the student, the lr decreases by a factor of 0.1.
+        epochs: Total epochs to distill for.
+        early_stopping: Number of epochs after which, if there is no improvement in
+            the accuracy of the student, the distillation stops.
+        temp: The temperature in the distillation process, inserted in the softmax.
+        alpha: Factor that balances between the loss of the student on the teacher
+            output and the hard labels. In our experiments, we always set this to 0,
+            i.e., the distillation process is solely based on the teacher output.
+    """
     def __init__(
         self,
         student: nn.Module,
@@ -79,7 +101,13 @@ class Distiller(nn.Module):
 
                 teacher_predictions = self.teacher.predict(x)
                 student_predictions = self.student(x)
+
+                # Compute but the cross-entropy between the student predictions and
+                # the truth labels. If alpha = 0, this is not used in the training.
                 student_loss = self.student_loss_fn(student_predictions, y_true)
+
+                # Compute, by default, the kl divergence between the teacher and the
+                # student outputs that are passed through softmax with temperature.
                 distillation_loss = (
                     self.distillation_loss_fn(
                         nn.functional.log_softmax(teacher_predictions/self.temp, dim=1),
@@ -87,6 +115,7 @@ class Distiller(nn.Module):
                     )
                     * self.temp**2
                 )
+
                 total_loss = (
                     self.alpha * student_loss + (1 - self.alpha) * distillation_loss
                 )

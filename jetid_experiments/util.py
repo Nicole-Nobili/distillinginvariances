@@ -57,8 +57,6 @@ def choose_deepsets(choice: str, model_hyperparams: dict):
 
 def choose_mlp(choice: str, model_hyperparams: dict):
     """Imports an MLP model."""
-
-    # Add handling for other model types if necessary
     mlp = {
         "mlp_basic": lambda: MLPBasic(**model_hyperparams),
         "mlp_reged": lambda: MLPReged(**model_hyperparams),
@@ -75,6 +73,7 @@ def choose_mlp(choice: str, model_hyperparams: dict):
 
 
 def get_model(model_type: str, model_hyperparams: dict):
+    """Get a model specified through a string in the configuration file."""
     if "ds" in model_type:
         model = choose_deepsets(model_type, model_hyperparams)
     elif "mlp" in model_type:
@@ -86,6 +85,7 @@ def get_model(model_type: str, model_hyperparams: dict):
 
 
 def choose_loss(choice, device):
+    """Get a pytorch loss object given a string specified in the configuration file."""
     losses = {
         "ce": lambda: nn.CrossEntropyLoss().to(device),
         "nll": lambda: nn.NLLLoss().to(device)
@@ -99,7 +99,7 @@ def choose_loss(choice, device):
 
 
 def import_data(device: str, config: dict, train: bool):
-    """Imports the Modelnet40 data using the pytorch geometric package."""
+    """Imports the jet data and casts it into a torch DataLoader object."""
     print(tcols.OKGREEN + "Importing data... " + tcols.ENDC, end="")
     jet_data = data.HLS4MLData150(
         config["root"],
@@ -123,6 +123,7 @@ def import_data(device: str, config: dict, train: bool):
 
 
 def print_data_deets(data, data_type: str):
+    """Prints some key details of the data set, for sanity check at start of training."""
     x, y = next(iter(data))
     print(tcols.HEADER + f"{data_type} data details:" + tcols.ENDC)
     print(f"Dataset size: {len(data.dataset)}")
@@ -140,7 +141,7 @@ def save_config_file(config: dict, outdir: str):
 
 
 def load_config_file(config_file: str):
-    """Saves the config file into given output directory."""
+    """Loads a config file given a certain path."""
     with open(config_file, "r") as stream:
         try:
             config = yaml.safe_load(stream)
