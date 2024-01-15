@@ -1,6 +1,6 @@
 # Understanding Knowledge Distillation by Transferring Symmetries
 
-## <b>Authors:</b> Patrick Odagiu, Nicole Nobili, Yves Bicker and Fabian Schrag
+# <b>Authors:</b> Patrick Odagiu, Nicole Nobili, Yves Bicker and Fabian Schrag
 
 
 #copy paste abstract
