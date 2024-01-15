@@ -202,7 +202,7 @@ class DeepSetsInvariant(nn.Module):
         if dropout < 0 or dropout > 1:
             print(f"Given dropout rate {dropout} is invalid! Building model w/o.")
 
-        self.rho_layers.append(self.phi_layers[-1])
+        self.rho_layers.insert(0, self.phi_layers[-1])
         self.rho_layers.append(self.output_dim)
         for nlayer in range(len(self.rho_layers) - 1):
             layer = nn.Linear(self.rho_layers[nlayer], self.rho_layers[nlayer + 1])

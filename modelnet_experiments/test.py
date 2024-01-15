@@ -54,7 +54,21 @@ def main(args: dict):
                 teacher_model = util.get_model(
                     config_teacher["model_type"], config_teacher["model_hyperparams"]
                 )
-
+        if "target_teacher" in config.keys():
+            all_metrics.update({"top1_agreement'": [], "teach_stu_kldiv'": []})
+            config_target_teacher = util.load_config_file(
+                os.path.join(config["target_teacher"], "config.yml")
+            )
+            target_teacher_model = util.get_model(
+                config_target_teacher["model_type"],
+                config_target_teacher["model_hyperparams"]
+            )
+            weights_file = os.path.join(
+                config["target_teacher"],
+                "seed" + str(config["teacher_seed"]),
+                "model.pt"
+            )
+            target_teacher_model.load_state_dict(torch.load(weights_file))
 
         weights_file = os.path.join(
             config["teacher"], "seed" + str(config["teacher_seed"]), "model.pt"
@@ -67,6 +81,10 @@ def main(args: dict):
         metrics = validate(model, weights_file, valid_data, device)
         if "teacher" in config.keys():
             metrics.update(compute_fidelity(model, teacher_model, valid_data, device))
+        if "target_teacher" in config.keys():
+            metrics.update(
+                compute_fidelity(model, target_teacher_model, valid_data, device, "'")
+            )
         for metric, value in metrics.items():
             all_metrics[metric].append(value)
 
@@ -134,7 +152,7 @@ def validate(
     return metrics
 
 
-def compute_fidelity(student, teacher, valid_data: DataLoader, device: str):
+def compute_fidelity(student, teacher, valid_data: DataLoader, device: str, flag = ""):
     """Compute the student-teacher average top-1 agreement and the KL divergence."""
     kldiv = nn.KLDivLoss(reduction="batchmean", log_target=True)
     top1_agreement_running = []
@@ -160,8 +178,8 @@ def compute_fidelity(student, teacher, valid_data: DataLoader, device: str):
     valid_kldiv_loss = np.mean(kldiv_loss_running)
 
     return {
-        "top1_agreement": valid_top1_agreement,
-        "teach_stu_kldiv": valid_kldiv_loss
+        f"top1_agreement{flag}": valid_top1_agreement,
+        f"teach_stu_kldiv{flag}": valid_kldiv_loss
     }
 
 

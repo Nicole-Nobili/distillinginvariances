@@ -1,9 +1,9 @@
 ---
 define: &sampling 1000
 define: &classes 40
-define: &temp 4
+define: &temp 16
 
-outdir: 'dgcnn_to_deepsequiv_T4_1000p'
+outdir: 'dgcnn_to_deepsequiv_T16_1000p'
 data_hyperparams:
   pc_rootdir: '../data/ModelNet40_1000p'
   classes: *classes
