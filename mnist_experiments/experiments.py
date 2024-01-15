@@ -131,31 +131,31 @@ try:
                 res[key].append("na")
 
         #Obtaining ResNet
-        cnn_path = "saved_structurallyinv" + "_rs" + str(random_seed) + "/model_1"
-        cnn = resnet18_mnist().to(device)
+        resnet_path = "saved_structurallyinv" + "_rs" + str(random_seed) + "/model_1"
+        resnet = resnet18_mnist().to(device)
         if TRAIN:
-            criterion_cnn = torch.nn.CrossEntropyLoss()
-            optimizer_cnn = torch.optim.Adam(cnn.parameters(), lr=lr)
+            criterion_resnet = torch.nn.CrossEntropyLoss()
+            optimizer_resnet = torch.optim.Adam(resnet.parameters(), lr=lr)
             # model training
             for epoch in range(num_epochs):
                 for i, (images, labels) in enumerate(train_loader):
-                    outputs = cnn(images.to('cuda'))
-                    loss = criterion_cnn(outputs, labels.to('cuda'))
+                    outputs = resnet(images.to('cuda'))
+                    loss = criterion_resnet(outputs, labels.to('cuda'))
 
-                    optimizer_cnn.zero_grad()
+                    optimizer_resnet.zero_grad()
                     loss.backward()
-                    optimizer_cnn.step()
+                    optimizer_resnet.step()
 
                     if (i + 1) % 100 == 0:
                         print(f'Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}')
             # Save the trained model
-            torch.save(cnn.state_dict(), cnn_path)
-            print(f"Model saved as {cnn_path}!")
+            torch.save(resnet.state_dict(), resnet_path)
+            print(f"Model saved as {resnet_path}!")
         if not TRAIN:
-            state_dict = torch.load(cnn_path)
-            cnn.load_state_dict(state_dict=state_dict)
+            state_dict = torch.load(resnet_path)
+            resnet.load_state_dict(state_dict=state_dict)
         print("STRUCTURALLY SHIFT INVARIANT MODEL 1")
-        valid = validate(model=cnn, weights_file=None, valid_data=test_loader, device=device, is_mlp= False)
+        valid = validate(model=resnet, weights_file=None, valid_data=test_loader, device=device, is_mlp= False)
         valid["Model"] = "shift_invariant_arch_1"
         for key in res:
             if key in valid:
@@ -163,33 +163,32 @@ try:
             else:
                 res[key].append("na")
 
-        # TODO: create second "stupid" cnn model (at the moment it is the same)
-        #Obtaining ResNet
-        cnn_path = "saved_structurallyinv" + "_rs" + str(random_seed) + "/model_2"
-        cnn = resnet18_mnist().to(device)
+        #Obtaining ResNet'
+        resnet_prime_path = "saved_structurallyinv" + "_rs" + str(random_seed) + "/model_2"
+        resnet_prime = resnet18_mnist().to(device)
         if TRAIN:
-            criterion_cnn = torch.nn.CrossEntropyLoss()
-            optimizer_cnn = torch.optim.Adam(cnn.parameters(), lr=lr)
+            criterion_resnet_prime = torch.nn.CrossEntropyLoss()
+            optimizer_resnet_prime = torch.optim.Adam(resnet_prime.parameters(), lr=lr)
             # model training
             for epoch in range(2):
                 for i, (images, labels) in enumerate(train_loader):
-                    outputs = cnn(images.to('cuda'))
-                    loss = criterion_cnn(outputs, labels.to('cuda'))
+                    outputs = resnet_prime(images.to('cuda'))
+                    loss = criterion_resnet_prime(outputs, labels.to('cuda'))
 
-                    optimizer_cnn.zero_grad()
+                    optimizer_resnet_prime.zero_grad()
                     loss.backward()
-                    optimizer_cnn.step()
+                    optimizer_resnet_prime.step()
 
                     if (i + 1) % 100 == 0:
                         print(f'Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}')
             # Save the trained model
-            torch.save(cnn.state_dict(), cnn_path)
-            print(f"Model saved as {cnn_path}!")
+            torch.save(resnet_prime.state_dict(), resnet_prime_path)
+            print(f"Model saved as {resnet_prime_path}!")
         if not TRAIN:
-            state_dict = torch.load(cnn_path)
-            cnn.load_state_dict(state_dict=state_dict)
+            state_dict = torch.load(resnet_prime_path)
+            resnet_prime.load_state_dict(state_dict=state_dict)
         print("STRUCTURALLY SHIFT INVARIANT MODEL 2")
-        valid = validate(model=cnn, weights_file=None, valid_data=test_loader, device=device, is_mlp= False)
+        valid = validate(model=resnet_prime, weights_file=None, valid_data=test_loader, device=device, is_mlp= False)
         valid["Model"] = "shift_invariant_arch_2"
         for key in res:
             if key in valid:
@@ -267,7 +266,7 @@ try:
                 else:
                     res[key].append("na")
 
-            #Distilling CNN to MLP
+            #Distilling RESNET to MLP
             save_path_folder_1 = "saved_models_distill_shiftinv1_to_mlp1" + "_rs" + str(random_seed) + "_temp" + str(temperature) + "/"
             save_path_folder_2 = "saved_models_distill_shiftinv2_to_mlp2" + "_rs" + str(random_seed) + "_temp" + str(temperature) + "/"
             teacher_path_1 = "saved_structurallyinv" + "_rs" + str(random_seed) + "/model_1"
