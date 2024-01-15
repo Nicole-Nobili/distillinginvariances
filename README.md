@@ -1,6 +1,7 @@
-# distillinginvariances
+# Understanding Knowledge Distillation by Transferring Symmetries
 
-#authors
+### <b>Authors:</b> Patrick Odagiu, Nicole Nobili, Yves Bicker and Fabian Schrag
+
 
 #copy paste abstract
 
@@ -11,6 +12,6 @@ clone the repo
    git clone https://github.com/Nicole-Nobili/distillinginvariances.git
 ```
 
-#for the 3 experiments see the readmes in the respective folders.
+The repository consists of independent experiments conducted over three datasets organized into three folders: jetid_experiments, mnist_experiments and modelnet_experiments. Instructions on how to run each indivual experiment are provided the README within the respective folder.
 
 
