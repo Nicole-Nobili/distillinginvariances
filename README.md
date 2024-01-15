@@ -2,8 +2,7 @@
 
 <b>Authors (alphabetical order):</b> Yves Bicker, Nicole Nobili, Patrick Odagiu, Fabian Schrag.
 
-
-#copy paste abstract
+Knowledge distillation is used in an attempt to transfer the invariances exhibited by specific neural networks into simpler models that initially lack these structural symmetires, but could, in principle, learn them. It is observed that the simpler models fail at learning these invariances. To evaluate the scope of our finding and fortify our claims, we perform experiments on three distinct datasets and explore two different types of invariances: translational invariance on MNIST and ModelNet40 as well as permutation invariance on high-energy jet classification data.
 
 ## Installation & running
 
