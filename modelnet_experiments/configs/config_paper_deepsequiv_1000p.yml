@@ -35,4 +35,4 @@ training_hyperparams:
   loss: "ce"
   clip_grad: 5
   early_stopping: 30
-
+  translate: False

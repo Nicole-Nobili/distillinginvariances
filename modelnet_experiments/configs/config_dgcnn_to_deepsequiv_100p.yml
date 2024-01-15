@@ -1,9 +1,9 @@
 ---
-define: &sampling 1000
+define: &sampling 100
 define: &classes 40
 define: &temp 4
 
-outdir: 'dgcnn_to_deepsequiv_T4_1000p'
+outdir: 'dgcnn_to_deepsequiv_T4_100p'
 data_hyperparams:
   pc_rootdir: '../data/ModelNet40_100p'
   classes: *classes
@@ -16,7 +16,7 @@ data_hyperparams:
     shuffle: True
     num_workers: 8
 
-teacher: "trained_models/dgcnn_1000p_wang_tinv/"
+teacher: "trained_models/dgcnn_100p_wang_tinv/"
 teacher_seed: 42
 
 model_type: "ds_equivariant"

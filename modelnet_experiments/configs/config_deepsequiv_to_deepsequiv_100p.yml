@@ -1,5 +1,5 @@
 ---
-define: &sampling 1000
+define: &sampling 100
 define: &classes 40
 define: &temp 16
 
