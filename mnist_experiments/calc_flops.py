@@ -28,7 +28,7 @@ def calc_cnn():
             optimizer_cnn.step()
             if epoch == profile_epoch and i == 0:
                 prof.stop_profile()
-                flops = prof.get_total_flops()
+                flops = prof.get_total_flops(as_string=True)
                 prof.end_profile()
                 print("Model flops CNN: ", flops)
                 return
@@ -55,7 +55,7 @@ def calc_mlp(hidden_size):
             optimizer_mlp.step()
             if epoch == profile_epoch and i == 0:
                 prof.stop_profile()
-                flops = prof.get_total_flops()
+                flops = prof.get_total_flops(as_string=True)
                 prof.end_profile()
                 temp = "Model flops MLP_" + str(hidden_size)
                 print(temp, flops)
@@ -63,7 +63,7 @@ def calc_mlp(hidden_size):
     
 
 if __name__ == "__main__":
-    device = "cpu"
+    device = "cuda"
     num_classes = 10
     lr = 0.001
     batch_size = 64

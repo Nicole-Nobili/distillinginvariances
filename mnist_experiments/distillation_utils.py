@@ -4,7 +4,28 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 class Distiller(nn.Module):
+    """Performs the knowledge distillation between a given teacher and a student.
 
+    For more details on this process, see
+        Hinton et. al. 2015 - Distilling Knowledge in a Neural Network
+        Stanton et. al. 2021 - Does Knowledge Distillation Really Work?
+
+    Args:
+        student: Student pytorch neural network module.
+        teacher: Teacher pytorch neural network module, pre-trained on the data.
+        device: String that specifies the pytorch device on which to cast the data and
+            the networks.
+        lr: The learning rate to use in the distillation process.
+        epochs: Total epochs to distill for.
+        early_stopping: Number of epochs after which, if there is no improvement in
+            the accuracy of the student, the distillation stops.
+        temp: The temperature in the distillation process, inserted in the softmax.
+        alpha: Factor that balances between the loss of the student on the teacher
+            output and the hard labels. In our experiments, we always set this to 0,
+            i.e., the distillation process is solely based on the teacher output.
+        load_student_from_path: load a pretrained student from this path
+        is_teacher_mlp: makes sure the inputs are in the correct format for the teacher
+    """
     def __init__(
         self,
         student: nn.Module,
