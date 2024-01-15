@@ -92,14 +92,14 @@ try:
 
         #Loading undistilled MLP
         if TRAIN:
-            undistilled_mlp = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
+            undistilled_mlp = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 256,
                 hidden_layers= 4, device='cuda')
             criterion_mlp = torch.nn.CrossEntropyLoss()
             optimizer_mlp = torch.optim.Adam(undistilled_mlp.parameters(), lr=lr)
             undistilled_mlp.training_loop(train_loader=train_loader, optimizer=optimizer_mlp, criterion=criterion_mlp, 
                     num_epochs=5, save_path_folder="saved_models_undistilled" + "_rs" + str(random_seed))
         if not TRAIN:
-            undistilled_mlp = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
+            undistilled_mlp = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 256,
                     hidden_layers= 4, device='cuda', from_saved_state_dict="saved_models_undistilled" + "_rs" + str(random_seed) + "/mlp")
         print("MLP WITHOUT SHIFT AUGMENTED DATA")
         valid = validate(model=undistilled_mlp, weights_file=None, valid_data=test_loader, device=device, is_mlp= True)
@@ -112,14 +112,14 @@ try:
 
         #Loading undistilled MLP augmented
         if TRAIN:
-            undistilled_mlp_augmented = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
+            undistilled_mlp_augmented = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 256,
                 hidden_layers= 4, device='cuda')
             criterion_mlp = torch.nn.CrossEntropyLoss()
             optimizer_mlp = torch.optim.Adam(undistilled_mlp_augmented.parameters(), lr=lr)
             undistilled_mlp_augmented.training_loop(train_loader=train_augmented_loader, optimizer=optimizer_mlp, criterion=criterion_mlp, 
                     num_epochs=5, save_path_folder="saved_models_undistilled_augmented"  + "_rs" + str(random_seed))
         if not TRAIN:
-            undistilled_mlp_augmented = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
+            undistilled_mlp_augmented = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 256,
                     hidden_layers= 4, device='cuda', from_saved_state_dict="saved_models_undistilled_augmented" + "_rs" + str(random_seed) + "/mlp")
         print("MLP TRAINED WITH SHIFT AUGMENTED DATA")
         valid = validate(model=undistilled_mlp_augmented, weights_file=None, valid_data=test_loader, device=device, is_mlp= True)
@@ -130,7 +130,7 @@ try:
             else:
                 res[key].append("na")
 
-        #Obtaining CNN
+        #Obtaining ResNet
         cnn_path = "saved_structurallyinv" + "_rs" + str(random_seed) + "/model_1"
         cnn = resnet18_mnist().to(device)
         if TRAIN:
@@ -164,7 +164,7 @@ try:
                 res[key].append("na")
 
         # TODO: create second "stupid" cnn model (at the moment it is the same)
-        #Obtaining CNN
+        #Obtaining ResNet
         cnn_path = "saved_structurallyinv" + "_rs" + str(random_seed) + "/model_2"
         cnn = resnet18_mnist().to(device)
         if TRAIN:
@@ -207,9 +207,9 @@ try:
             #Self distilling MLP (only from unshifted data)
             save_path_folder = "saved_models_selfdistill_unshifted" + "_rs" + str(random_seed) + "_temp" + str(temperature) + "/"
             teacher_path = "saved_models_undistilled" + "_rs" + str(random_seed) + "/mlp"
-            mlp_student = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
+            mlp_student = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 256,
                         hidden_layers= 4, device=device)
-            mlp_teacher = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
+            mlp_teacher = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 256,
                         hidden_layers= 4, device=device, from_saved_state_dict=teacher_path)
             print("MODEL MLP TEACHER NOT SHIFT INVARIANT")
             validate(model=mlp_teacher, weights_file=None, valid_data=test_loader, device=device, is_mlp= True)
@@ -239,10 +239,10 @@ try:
             #Self distilling MLP (augmented)
             save_path_folder = "saved_models_selfdistill_augmented" + "_rs" + str(random_seed) + "_temp" + str(temperature) + "/"
             teacher_path = "saved_models_undistilled_augmented" + "_rs" + str(random_seed) + "/mlp"
-            mlp_student = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
+            mlp_student = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 256,
                         hidden_layers= 4, device=device)
 
-            mlp_teacher = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
+            mlp_teacher = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 256,
                         hidden_layers= 4, device=device, from_saved_state_dict=teacher_path)
             print("MODEL MLP TEACHER SHIFT INVARIANT")
             validate(model=mlp_teacher, weights_file=teacher_path, valid_data=test_loader, device=device, is_mlp= True)
@@ -273,10 +273,10 @@ try:
             teacher_path_1 = "saved_structurallyinv" + "_rs" + str(random_seed) + "/model_1"
             teacher_path_2 = "saved_structurallyinv" + "_rs" + str(random_seed) + "/model_2"
 
-            mlp_student_1 = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
+            mlp_student_1 = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 256,
                         hidden_layers= 4, device=device)
 
-            mlp_student_2 = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 512,
+            mlp_student_2 = MLP(input_dim = 784, output_dim= num_classes, hidden_size= 256,
                         hidden_layers= 4, device=device)
 
             teacher_1 = resnet18_mnist().to(device)
