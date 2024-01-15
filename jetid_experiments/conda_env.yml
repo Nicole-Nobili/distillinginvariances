@@ -1,25 +1,19 @@
-name: distinv
+name: distinv_jetid
 channels:
   - conda-forge
   - defaults
 dependencies:
   - python=3.11
-  - pyyaml
   - numpy
   - pytorch
   - pytorch-cuda=12.1
   - torchaudio
   - torchvision
   - torchinfo
-  - scipy
-  - plotly
-  - pandas
   - matplotlib
+  - wget
+  - python-wget
+  - h5py
   - scikit-learn
-  - pyg
-  - tabulate
   - torchmetrics
-  - optuna
-  - pytorch-cluster
-  - pytorch-scatter
-prefix: /data/deodagiu/miniconda/envs/distinv
+prefix: /data/deodagiu/miniconda/envs/distinv_jetid
