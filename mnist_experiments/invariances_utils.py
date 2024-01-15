@@ -164,17 +164,30 @@ def invariance_measure(labels_normal, labels_shifted):
     labels_shifted = torch.softmax(labels_shifted, dim=1) #batch classes
     return torch.mean(torch.norm(labels_normal - labels_shifted, dim=1))
 
-def test_IM(loader, model, cnn, device, debug: bool = False):
-    cnn.eval()
+def test_IM(loader, model, model2, device, debug: bool = False):
+    """
+    Evaluate a model's invariance using shifted and non-shifted images.
+
+    Parameters:
+    - loader (torch.utils.data.DataLoader): Data loader for the dataset.
+    - model (torch.nn.Module): The primary model to evaluate.
+    - model2 (torch.nn.Module): Second model for comparison.
+    - device (torch.device): The device on which the evaluation should be performed.
+    - debug (bool, optional): If True, visualize images for debugging purposes. Default is False.
+
+    Returns:
+    - torch.Tensor: Mean invariance measure (IM) over the dataset.
+    """
+    model2.eval()
     model.eval()
     directions = ["u", "d", "l", "r"]
     invariance_measures = []
-    invariance_measure_cnn = []
+    invariance_measure_model2 = []
     n = 0
     correct_normal = 0
     correct_shifted = 0
-    correct_normal_cnn = 0
-    correct_shifted_cnn = 0
+    correct_normal_model2 = 0
+    correct_shifted_model2 = 0
     random_affine = transforms.RandomAffine(degrees=0, translate=(0.2, 0.2))
 
     for images,labels in loader:
@@ -196,22 +209,22 @@ def test_IM(loader, model, cnn, device, debug: bool = False):
         shifted = torch.cat(shifted, dim=0)
         non_shifted = torch.cat(non_shifted, dim=0)
         with torch.no_grad():
-            cnn_unsh = cnn(non_shifted.unsqueeze(1))
-            cnn_sh = cnn(shifted.unsqueeze(1))
+            model2_unsh = model2(non_shifted.unsqueeze(1))
+            model2_sh = model2(shifted.unsqueeze(1))
             shifted = shifted.view(-1, shifted.shape[-1] * shifted.shape[-2])
             non_shifted = non_shifted.view(-1, non_shifted.shape[-1] * non_shifted.shape[-2])
             unshifted_labels = model(non_shifted)
             shifted_labels = model(shifted)
         correct_normal = correct_normal + torch.sum(torch.max(unshifted_labels, dim = 1)[1] == labels).item()
         correct_shifted = correct_shifted + torch.sum(torch.max(shifted_labels, dim= 1)[1] == labels).item()
-        correct_normal_cnn = correct_normal_cnn + torch.sum(torch.max(cnn_unsh, dim = 1)[1] == labels).item()
-        correct_shifted_cnn = correct_shifted_cnn + torch.sum(torch.max(cnn_sh, dim= 1)[1] == labels).item()
-        invariance_measure_cnn.append(invariance_measure(cnn_unsh, cnn_sh).unsqueeze(0))
+        correct_normal_model2 = correct_normal_model2 + torch.sum(torch.max(model2_unsh, dim = 1)[1] == labels).item()
+        correct_shifted_model2 = correct_shifted_model2 + torch.sum(torch.max(model2_sh, dim= 1)[1] == labels).item()
+        invariance_measure_model2.append(invariance_measure(model2_unsh, model2_sh).unsqueeze(0))
         invariance_measures.append(invariance_measure(unshifted_labels, shifted_labels).unsqueeze(0))
     print(f"Correct normal: {correct_normal/n}\n"
           + f"Correct shifted: {correct_shifted/n}\n"
-          + f"Correct cnn normal: {correct_normal_cnn/n}\n"
-          + f"Correct cnn shifted: {correct_shifted_cnn/n}\n")
+          + f"Correct model2 normal: {correct_normal_model2/n}\n"
+          + f"Correct model2 shifted: {correct_shifted_model2/n}\n")
     
     plt.subplot(1,2,1)
     shifted_image = transforms.ToPILImage()(sh)
@@ -219,10 +232,24 @@ def test_IM(loader, model, cnn, device, debug: bool = False):
     plt.subplot(1,2,2)
     shifted_image = transforms.ToPILImage()(img)
     plt.imshow(shifted_image, cmap="gray")
-    print(torch.mean(torch.cat(invariance_measure_cnn)))
+    print(torch.mean(torch.cat(invariance_measure_model2)))
     return torch.mean(torch.cat(invariance_measures))
 
-def test_IM_single(loader, model, device, is_mlp):
+def test_IM_single(loader, model, device, is_mlp, debug: bool = False):
+    """
+    Evaluate a model's invariance using shifted and non-shifted images for a single model.
+
+    Parameters:
+    - loader (torch.utils.data.DataLoader): Data loader for the dataset.
+    - model (torch.nn.Module): The model to evaluate.
+    - device (torch.device): The device on which the evaluation should be performed.
+    - is_mlp (bool): set to True if the model is an MLP.
+    - debug (bool, optional): If True, visualize images for debugging purposes. Default is False.
+
+    Returns:
+    - torch.Tensor: Mean invariance measure over the dataset.
+    
+    """
     model.eval()
     directions = ["u", "d", "l", "r"]
     invariance_measures = []
@@ -239,11 +266,11 @@ def test_IM_single(loader, model, device, is_mlp):
         for img in images:
             np.random.shuffle(directions)
             sh = shift_preserving_shape(img, direction=directions[0], max_shift=5)
-            #sh = random_affine(img.unsqueeze(0))
             if sh is not None:
                 n = n + 1
-                #visualize_tensor_as_image(img.cpu())
-                #visualize_tensor_as_image(sh.cpu())
+                if debug:
+                    visualize_tensor_as_image(img.cpu())
+                    visualize_tensor_as_image(sh.cpu())
                 shifted.append(sh.unsqueeze(0))
                 non_shifted.append(img.unsqueeze(0))
         shifted = torch.cat(shifted, dim=0)
@@ -267,7 +294,19 @@ def test_IM_single(loader, model, device, is_mlp):
     return torch.mean(torch.cat(invariance_measures))
 
 def validate(model: torch.nn.Module, weights_file: str, valid_data: DataLoader, device: str, is_mlp: bool):
-    """Run the model on the test data and save all relevant metrics to file."""
+    """
+    Validate a model's performance on a validation dataset.
+
+    Parameters:
+    - model (torch.nn.Module): The model to be validated.
+    - weights_file (str): Path to the file containing the model weights. If None, no weights are loaded.
+    - valid_data (torch.utils.data.DataLoader): DataLoader for the validation dataset.
+    - device (str): Device on which to perform the validation (e.g., "cuda" or "cpu").
+    - is_mlp (bool): set to True if the model is an MLP.
+
+    Returns:
+    - dict: A dictionary containing validation metrics (accuracy, negative log likelihood, ECE, and shift invariance).
+    """
     if weights_file is not None:
         model.load_state_dict(torch.load(weights_file))
     model.to(device)
