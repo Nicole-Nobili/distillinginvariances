@@ -6,7 +6,18 @@ from torch.utils.data import DataLoader
 import torchmetrics
 
 def visualize_tensor_as_image(tensor):
-    # Assuming the input tensor is a square matrix
+    """
+    Visualizes a 2D square matrix (tensor) as an image.
+
+    Parameters:
+    - tensor (numpy.ndarray): The input square matrix to be visualized as an image.
+
+    Raises:
+    - ValueError: If the input tensor is not a square matrix.
+
+    Returns:
+    - None: Displays the image using Matplotlib.
+    """
     if len(tensor.shape) != 2 or tensor.shape[0] != tensor.shape[1]:
         raise ValueError("Input tensor must be a square matrix.")
 
@@ -14,10 +25,26 @@ def visualize_tensor_as_image(tensor):
     plt.colorbar()
     plt.show()
 
-def shift_not_preserving_shape(image, direction : str, max_shift: int):
+def shift_not_preserving_shape(image, direction : str, max_shift: int, debug: bool = False):
+    """
+    Apply a non-preserving shape shift to a 2D tensor/image.
+
+    Parameters:
+    - image (torch.Tensor): Input 2D tensor or image.
+    - direction (str): Direction of the shift ("u" for up, "d" for down, "l" for left, "r" for right).
+    - max_shift (int): Maximum number of pixels to shift.
+    - debug (bool, optional): If True, visualize the image before and after the shift for debugging purposes. Default is False.
+
+    Returns:
+    - torch.Tensor: The shifted 2D tensor or image.
+
+    Raises:
+    - ValueError: If an incorrect direction value is passed.
+    """
     img = torch.clone(image)
     shift = np.random.randint(low=1, high= max_shift+1)
-    #visualize_tensor_as_image(img)
+    if debug:
+        visualize_tensor_as_image(img)
     if direction == "u":
         img = torch.roll(img, -shift, 0)
         img[-shift:,:] = torch.full(img[-shift:,:].shape, -1)
@@ -32,15 +59,40 @@ def shift_not_preserving_shape(image, direction : str, max_shift: int):
         img[:,:shift] = torch.full(img[:,:shift].shape, -1)
     else:
         raise ValueError("wrong value passed")
-    #visualize_tensor_as_image(img)
+    if debug:
+        visualize_tensor_as_image(img)
     return img
 
-def shift_preserving_shape(image, direction : str, max_shift: int):
+def shift_preserving_shape(image, direction : str, max_shift: int, debug: bool = False):
+    """
+    Apply a preserving shape shift to a 2D tensor/image. 
+    This function does not apply a shift of some amount in 
+    some direction if that would result in losing some pixels of the digit. 
+    Instead, it tries to shift the image in all other directions with a maximum shift given
+    by max_shift. 
+
+    Parameters:
+    - image (torch.Tensor): Input 2D tensor or image.
+    - direction (str): Preferred direction of the shift ("u" for up, "d" for down, "l" for left, "r" for right).     
+    This function does not apply a shift in 
+    the specified direction if that would result in losing some pixels of the digit. 
+    Instead, it tries to shift the image in all other directions with a maximum shift given
+    by max_shift. 
+    - max_shift (int): Maximum number of pixels to shift.
+    - debug (bool, optional): If True, visualize the image before and after the shift for debugging purposes. Default is False.
+
+    Returns:
+    - torch.Tensor: The shifted 2D tensor or image. If the shift is not possible in any direction for any amount, None is returned.
+
+    Raises:
+    - ValueError: If an incorrect direction value is passed.
+    """
     initial_dir = direction
     img = torch.clone(image)
     shift = np.random.randint(low=1, high= max_shift+1)
     shift = max_shift
-    #visualize_tensor_as_image(img)
+    if debug:
+        visualize_tensor_as_image(img)
     row_length = img.shape[1]
     col_length = img.shape[0]
     if direction == "u":
@@ -89,21 +141,30 @@ def shift_preserving_shape(image, direction : str, max_shift: int):
             img = torch.roll(img, shift, 1)
     else:
         raise ValueError("wrong value passed")
-    #visualize_tensor_as_image(img)
+    if debug:
+        visualize_tensor_as_image(img)
     return img
 
 def invariance_measure(labels_normal, labels_shifted):
+    """
+    Calculate the IM between two sets of probability distributions.
 
-    #normalize tensors
-    #print(labels_normal[0:5])
+    Parameters:
+    - labels_normal (torch.Tensor): Logits (before softmax) for the normal input (before transformation).
+    - labels_shifted (torch.Tensor): Logits (before softmax) for the transformed input.
+
+    Returns:
+    - torch.Tensor: Mean L2 norm of the differences between the probability distributions.
+
+    Note:
+    The input tensors are assumed to represent batched probability distributions over classes.
+    The softmax function is applied to ensure that the inputs are normalized into probability distributions.
+    """
     labels_normal = torch.softmax(labels_normal, dim=1) #batch classes
-    #print(labels_normal[0:5])
     labels_shifted = torch.softmax(labels_shifted, dim=1) #batch classes
-    #print((labels_normal-labels_shifted)[0])
-    #print(torch.norm(labels_normal - labels_shifted, dim=1)[0])
     return torch.mean(torch.norm(labels_normal - labels_shifted, dim=1))
 
-def test_IM(loader, model, cnn, device):
+def test_IM(loader, model, cnn, device, debug: bool = False):
     cnn.eval()
     model.eval()
     directions = ["u", "d", "l", "r"]
@@ -125,11 +186,11 @@ def test_IM(loader, model, cnn, device):
         for img in images:
             np.random.shuffle(directions)
             sh = shift_preserving_shape(img, direction=directions[0], max_shift=5)
-            #sh = random_affine(img.unsqueeze(0))
             if sh is not None:
                 n = n + 1
-                #visualize_tensor_as_image(img.cpu())
-                #visualize_tensor_as_image(sh.cpu())
+                if debug:
+                    visualize_tensor_as_image(img.cpu())
+                    visualize_tensor_as_image(sh.cpu())
                 shifted.append(sh.unsqueeze(0))
                 non_shifted.append(img.unsqueeze(0))
         shifted = torch.cat(shifted, dim=0)
